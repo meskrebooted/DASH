@@ -822,16 +822,43 @@
   .cust-actions .cust-save:hover{ opacity:.9; }
 
   /* ---------- LANGUAGE SETTINGS ---------- */
-  .lang-select{
-    background:var(--bg); border:1px solid var(--border); color:var(--text);
-    padding:6px 12px; border-radius:999px; font-family:var(--mono);
-    font-size:11px; outline:none; cursor:pointer;
-    font-weight:600; letter-spacing:.5px;
-  }
-  .lang-select:focus{ border-color:var(--accent); }
-  .lang-select option{
-    background:var(--surface); color:var(--text);
-  }
+.lang-select{
+  background:var(--bg);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:6px 12px;
+  border-radius:999px;
+  font-family:var(--mono);
+  font-size:11px;
+  outline:none;
+  cursor:pointer;
+  font-weight:600;
+  letter-spacing:.5px;
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+.lang-select:focus{
+  border-color:var(--accent);
+  background:var(--bg);
+  color:var(--text);
+}
+
+.lang-select option{
+  background-color:var(--bg);
+  color:var(--text);
+}
+
+.lang-select option:checked{
+  background-color:var(--surface-hover);
+  color:var(--text);
+}
+
+/* fallback per browser che supportano hover sulle option */
+.lang-select option:hover{
+  background-color:var(--surface-hover);
+  color:var(--text);
+}
 
   /* ---------- FOOTER ---------- */
   .site-footer{
