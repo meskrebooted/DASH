@@ -1873,9 +1873,9 @@
 
   /* ===================== SEARCH BAR + AUTOCOMPLETE ===================== */
   const searchInput = document.getElementById('searchInput');
-  window.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); searchInput?.focus(); } });
   const searchHint = document.getElementById('searchHint');
   const autocomplete = document.getElementById('autocomplete');
+  window.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter' && !['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) { e.preventDefault(); searchInput?.focus(); searchInput?.select(); if(searchInput?.value?.trim()) renderAutocomplete(searchInput.value); } });
   let acIndex = -1;
   let acItems = [];
 
