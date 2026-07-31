@@ -1,6 +1,33 @@
 (function(){
   "use strict";
 
+  /* ===================== SERVICE WORKER ===================== */
+  const LS_SW = 'dash_sw_asked';
+  if('serviceWorker' in navigator && !localStorage.getItem(LS_SW)){
+    const banner = document.createElement('div');
+    banner.id = 'swPrompt';
+    banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:99999;'
+      + 'background:#1a1a2e;border:1px solid rgba(255,255,255,.15);'
+      + 'border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;'
+      + 'font-size:12px;box-shadow:0 4px 24px rgba(0,0,0,.5);max-width:360px;width:90%;'
+      + 'backdrop-filter:blur(12px);color:#fff;';
+    banner.innerHTML = `
+      <span style="font-size:20px;">📥</span>
+      <span style="flex:1;line-height:1.4;">Vuoi usare questa dashboard <b>anche offline</b>? Salveremo le risorse in cache.</span>
+      <button id="swYes" style="background:#3db4f2;color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">Sì, salva</button>
+      <button id="swNo" style="background:none;border:none;color:#fff;opacity:.5;cursor:pointer;font-size:18px;line-height:1;padding:0 2px;" title="No grazie">✕</button>`;
+    document.body.appendChild(banner);
+    function dismiss(install){
+      localStorage.setItem(LS_SW, install ? 'yes' : 'no');
+      banner.remove();
+      if(install) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    }
+    document.getElementById('swYes').addEventListener('click', () => dismiss(true));
+    document.getElementById('swNo').addEventListener('click',  () => dismiss(false));
+  } else if('serviceWorker' in navigator && localStorage.getItem(LS_SW) === 'yes'){
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  }
+
   /* ===================== CONFIG ===================== */
   // No worker needed - using free public APIs or BYOK
 
@@ -39,7 +66,8 @@
         clock:'CLOCK', weather:'WEATHER', calendar:'CALENDAR', quote:'QUOTE',
         notes:'NOTES', crypto:'CRYPTO', map:'MAP', todo:'TODO', timer:'TIMER',
         bookmarks:'BOOKMARKS', news:'NEWS', chatsimple:'CHAT', chatbyok:'CHAT BYOK',
-        github:'GITHUB', worldclock:'WORLD CLOCK'
+        github:'GITHUB', worldclock:'WORLD CLOCK',
+        anilistrecent:'AL RECENT', anilistnotif:'AL NOTIFS', anilisttracker:'AL TRACKER'
       },
       'widget-desc': {
         clock:'Live digital clock',
@@ -56,7 +84,10 @@
         chatsimple:'Free AI chat (no key), supports images/files',
         chatbyok:'Bring your own key (OpenAI, Anthropic, NVIDIA NIM, Groq, etc.)',
         github:'GitHub user profile stats',
-        worldclock:'Multiple timezones at a glance'
+        worldclock:'Multiple timezones at a glance',
+        anilistrecent:'Recently aired anime via AniList',
+        anilistnotif:'Your AniList notifications',
+        anilisttracker:'Update your anime list directly'
       },
       // customize modal titles
       'cust-bookmarks-title': 'CUSTOMIZE BOOKMARKS',
@@ -115,7 +146,8 @@
         clock:'OROLOGIO', weather:'METEO', calendar:'CALENDARIO', quote:'CITAZIONE',
         notes:'NOTE', crypto:'CRIPTO', map:'MAPPA', todo:'TODO', timer:'TIMER',
         bookmarks:'SEGNALIBRI', news:'NOTIZIE', chatsimple:'CHAT', chatbyok:'CHAT BYOK',
-        github:'GITHUB', worldclock:'OROLOGIO MONDIALE'
+        github:'GITHUB', worldclock:'OROLOGIO MONDIALE',
+        anilistrecent:'AL RECENTI', anilistnotif:'AL NOTIFICHE', anilisttracker:'AL TRACKER'
       },
       'widget-desc': {
         clock:'Orologio digitale in tempo reale',
@@ -132,7 +164,10 @@
         chatsimple:'Chat AI gratuita (senza chiave), supporta immagini/file',
         chatbyok:'Porta la tua chiave (OpenAI, Anthropic, NVIDIA NIM, Groq, ecc.)',
         github:'Statistiche profilo GitHub',
-        worldclock:'Più fusi orari a colpo d\'occhio'
+        worldclock:'Più fusi orari a colpo d\'occhio',
+        anilistrecent:'Anime usciti di recente via AniList',
+        anilistnotif:'Le tue notifiche AniList',
+        anilisttracker:'Aggiorna la tua lista anime direttamente'
       },
       'cust-bookmarks-title': 'PERSONALIZZA SEGNALIBRI',
       'cust-bookmarks-sub': 'Aggiungi, rimuovi o riordina i tuoi link rapidi',
@@ -689,7 +724,10 @@
     chatsimple: { icon:'◌', size:'1x2', build: buildChatSimple },
     chatbyok:   { icon:'🔑', size:'1x2', build: buildChatBYOK },
     github:     { icon:'◔', size:'1x2', build: buildGithub, customizable: true },
-    worldclock: { icon:'◑', size:'2x1', build: buildWorldClock, customizable: true }
+    worldclock: { icon:'◑', size:'2x1', build: buildWorldClock, customizable: true },
+    anilistrecent:  { icon:'▶', size:'2x2', build: buildAniListRecent },
+    anilistnotif:   { icon:'◎', size:'1x2', build: buildAniListNotif },
+    anilisttracker: { icon:'✓', size:'2x2', build: buildAniListTracker }
   };
   function widgetTitle(key){ return (I18N[currentLang]['widget-title'] && I18N[currentLang]['widget-title'][key]) || I18N.en['widget-title'][key] || key.toUpperCase(); }
   function widgetDesc(key){ return (I18N[currentLang]['widget-desc'] && I18N[currentLang]['widget-desc'][key]) || I18N.en['widget-desc'][key] || ''; }
@@ -862,6 +900,16 @@
     95:'Thunderstorm',96:'Thunderstorm w/ hail',99:'Severe thunderstorm w/ hail'
   };
 
+  const WMO_ICON = {
+    0:'☀️',1:'🌤️',2:'⛅',3:'☁️',
+    45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',
+    61:'🌧️',63:'🌧️',65:'🌧️',66:'🌨️',67:'🌨️',
+    71:'🌨️',73:'❄️',75:'❄️',77:'🌨️',
+    80:'🌦️',81:'🌧️',82:'⛈️',
+    85:'🌨️',86:'🌨️',
+    95:'⛈️',96:'⛈️',99:'⛈️'
+  };
+
   function buildWeather(body, w){
     const row = document.createElement('div'); row.className='weather-city-row';
     row.innerHTML = `<input type="text" placeholder="Search city…" id="ci-${w.id}"><button id="cb-${w.id}">Go</button>`;
@@ -869,15 +917,18 @@
     main.innerHTML = `<div class="weather-temp">--°</div><div class="weather-cond">Loading…</div>`;
     const loc = document.createElement('div'); loc.className='weather-loc'; loc.textContent='Locating…';
     const sub = document.createElement('div'); sub.className='weather-sub';
+    const forecast = document.createElement('div'); forecast.className='weather-forecast';
 
-    body.appendChild(row); body.appendChild(main); body.appendChild(loc); body.appendChild(sub);
+    body.appendChild(row); body.appendChild(main); body.appendChild(loc); body.appendChild(sub); body.appendChild(forecast);
 
     const input = row.querySelector('input');
     const btn = row.querySelector('button');
 
     async function fetchWeather(lat, lon, label){
       try{
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&temperature_unit=celsius`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+          + `&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m`
+          + `&hourly=temperature_2m,weather_code&temperature_unit=celsius&forecast_days=1`;
         const r = await fetch(url);
         const d = await r.json();
         const c = d.current;
@@ -885,6 +936,23 @@
         loc.textContent = label.toUpperCase();
         sub.innerHTML = `<span>💧 ${c.relative_humidity_2m}%</span><span>💨 ${Math.round(c.wind_speed_10m)} km/h</span>`;
         localStorage.setItem(LS_CITY, JSON.stringify({lat, lon, label}));
+
+        // hourly forecast: next 7 hours
+        const hours = d.hourly?.time || [];
+        const temps = d.hourly?.temperature_2m || [];
+        const codes = d.hourly?.weather_code || [];
+        const now = new Date();
+        const slots = [];
+        for(let i = 0; i < hours.length && slots.length < 7; i++){
+          const h = new Date(hours[i]);
+          if(h <= now) continue;
+          slots.push({ h, t: Math.round(temps[i]), wc: codes[i] });
+        }
+        forecast.innerHTML = slots.map(s => {
+          const hr = s.h.getHours();
+          const lbl = hr === 12 ? '12pm' : hr === 0 ? '12am' : hr < 12 ? hr+'am' : (hr-12)+'pm';
+          return `<div class="wf-slot"><div class="wf-time">${lbl}</div><div class="wf-icon">${WMO_ICON[s.wc]||'—'}</div><div class="wf-temp">${s.t}°</div></div>`;
+        }).join('');
       }catch(e){
         main.innerHTML = `<div class="weather-cond">Couldn't load weather</div>`;
       }
@@ -1759,6 +1827,360 @@
     setInterval(paint, 1000);
   }
 
+
+  /* ===================== ANILIST ===================== */
+  const LS_ANILIST_TOKEN = 'dash_anilist_token';
+  const LS_ANILIST_USER  = 'dash_anilist_user';
+  const ANILIST_GQL = 'https://graphql.anilist.co';
+
+  // Read token from URL fragment after OAuth redirect (implicit grant)
+  (function parseAniListToken(){
+    const hash = window.location.hash;
+    if(!hash.includes('access_token')) return;
+    const params = new URLSearchParams(hash.replace('#',''));
+    const token = params.get('access_token');
+    if(token){
+      localStorage.setItem(LS_ANILIST_TOKEN, token);
+      history.replaceState(null,'',window.location.pathname+window.location.search);
+    }
+  })();
+
+  function getAniListToken(){ return localStorage.getItem(LS_ANILIST_TOKEN)||null; }
+
+  async function aniGQL(query, variables={}, token=null){
+    const headers = { 'Content-Type':'application/json', 'Accept':'application/json' };
+    if(token) headers['Authorization'] = 'Bearer ' + token;
+    const r = await fetch(ANILIST_GQL, {
+      method:'POST',
+      headers,
+      body: JSON.stringify({ query, variables })
+    });
+    const d = await r.json();
+    if(d.errors) throw new Error(d.errors[0].message);
+    return d.data;
+  }
+
+  function aniListLoginBtn(clientId){
+    return `<a class="al-login-btn" href="https://anilist.co/api/v2/oauth/authorize?client_id=${encodeURIComponent(clientId)}&response_type=token" target="_self">▶ Login con AniList</a>`;
+  }
+
+  // Shared login UI shown when no token
+  function renderAniListAuth(body, clientIdKey){
+    const savedId = localStorage.getItem(clientIdKey)||'';
+    body.innerHTML = `
+      <div class="al-auth">
+        <div class="al-auth-logo">▶ AniList</div>
+        <p class="al-auth-hint">Inserisci il tuo Client ID dall’app AniList (<a href="https://anilist.co/settings/developer" target="_blank">settings/developer</a>), poi clicca Login.</p>
+        <input class="al-client-input" type="text" placeholder="Client ID" value="${escapeHtml(savedId)}">
+        <button class="al-go-btn">Login →</button>
+        <div class="al-auth-note">Imposta Redirect URL su <code>https://anilist.co/api/v2/oauth/pin</code> nella tua app AniList se usi il PIN flow, oppure metti l’URL del tuo sito.</div>
+      </div>`;
+    body.querySelector('.al-go-btn').addEventListener('click', ()=>{
+      const id = body.querySelector('.al-client-input').value.trim();
+      if(!id) return;
+      localStorage.setItem(clientIdKey, id);
+      window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${encodeURIComponent(id)}&response_type=token`;
+    });
+  }
+
+  /* ---- Widget 1: Recently Aired Anime ---- */
+  function buildAniListRecent(body){
+    const token = getAniListToken();
+    if(!token){ renderAniListAuth(body,'dash_al_clientid'); return; }
+
+    body.innerHTML = '<div class="al-loading">Caricamento…</div>';
+
+    const QUERY = `
+      query($page:Int,$perPage:Int,$airingAt_greater:Int,$airingAt_lesser:Int){
+        Page(page:$page,perPage:$perPage){
+          airingSchedules(airingAt_greater:$airingAt_greater,airingAt_lesser:$airingAt_lesser,sort:TIME_DESC){
+            episode
+            airingAt
+            media{
+              id
+              title{ userPreferred }
+              coverImage{ medium color }
+              format
+              episodes
+              siteUrl
+              mediaListEntry{ status progress }
+            }
+          }
+        }
+      }`;
+    const now = Math.floor(Date.now()/1000);
+    const weekAgo = now - 7*24*3600;
+
+    aniGQL(QUERY,{page:1,perPage:25,airingAt_greater:weekAgo,airingAt_lesser:now},token)
+      .then(d=>{
+        const schedules = d?.Page?.airingSchedules||[];
+        if(!schedules.length){ body.innerHTML='<div class="al-empty">Nessun anime recente</div>'; return; }
+        body.innerHTML = `
+          <div class="al-header">
+            <span>Ultimi 7 giorni</span>
+            <button class="al-logout-btn" title="Disconnetti">Esci</button>
+          </div>
+          <div class="al-recent-list"></div>`;
+        body.querySelector('.al-logout-btn').addEventListener('click',()=>{
+          localStorage.removeItem(LS_ANILIST_TOKEN);
+          buildAniListRecent(body);
+        });
+        const list = body.querySelector('.al-recent-list');
+        list.innerHTML = schedules.map(s=>{
+          const m = s.media;
+          const color = m.coverImage?.color||'#3db4f2';
+          const status = m.mediaListEntry?.status||'';
+          const statusBadge = status ? `<span class="al-status-badge al-status-${status.toLowerCase()}">${status}</span>` : '';
+          const date = new Date(s.airingAt*1000);
+          const dateStr = date.toLocaleDateString([],{month:'short',day:'numeric'});
+          return `<a class="al-recent-item" href="${escapeHtml(m.siteUrl)}" target="_blank" rel="noopener" style="--al-color:${escapeHtml(color)}">
+            <img class="al-cover" src="${escapeHtml(m.coverImage?.medium||'')}" alt="" loading="lazy">
+            <div class="al-recent-info">
+              <div class="al-title">${escapeHtml(m.title?.userPreferred||'')}</div>
+              <div class="al-meta">Ep ${s.episode}${m.episodes?'/'+m.episodes:''} · ${dateStr} ${statusBadge}</div>
+            </div>
+          </a>`;
+        }).join('');
+      })
+      .catch(e=>{
+        if(e.message&&e.message.toLowerCase().includes('invalid')){
+          localStorage.removeItem(LS_ANILIST_TOKEN);
+          renderAniListAuth(body,'dash_al_clientid');
+        } else {
+          body.innerHTML = `<div class="al-empty">Errore: ${escapeHtml(e.message)}</div>`;
+        }
+      });
+  }
+
+  /* ---- Widget 2: Notifications ---- */
+  function buildAniListNotif(body){
+    const token = getAniListToken();
+    if(!token){ renderAniListAuth(body,'dash_al_clientid'); return; }
+
+    body.innerHTML = '<div class="al-loading">Caricamento…</div>';
+
+    const QUERY = `
+      query($perPage:Int){
+        Page(perPage:$perPage){
+          notifications(resetNotificationCount:false){
+            ... on AiringNotification{
+              type episode media{ id title{ userPreferred } siteUrl coverImage{ medium color } }
+            }
+            ... on RelatedMediaAdditionNotification{
+              type media{ id title{ userPreferred } siteUrl coverImage{ medium color } }
+            }
+            ... on MediaDataChangeNotification{
+              type reason media{ id title{ userPreferred } siteUrl }
+            }
+            ... on ActivityMentionNotification{
+              type createdAt user{ name }
+            }
+            ... on ActivityReplyNotification{
+              type createdAt user{ name }
+            }
+            ... on ActivityLikeNotification{
+              type createdAt user{ name }
+            }
+            ... on FollowingNotification{
+              type createdAt user{ name avatar{ medium } }
+            }
+          }
+        }
+      }`;
+
+    aniGQL(QUERY,{perPage:20},token)
+      .then(d=>{
+        const notifs = d?.Page?.notifications||[];
+        body.innerHTML = `
+          <div class="al-header">
+            <span>Notifiche (${notifs.length})</span>
+            <button class="al-logout-btn" title="Disconnetti">Esci</button>
+          </div>
+          <div class="al-notif-list"></div>`;
+        body.querySelector('.al-logout-btn').addEventListener('click',()=>{
+          localStorage.removeItem(LS_ANILIST_TOKEN);
+          buildAniListNotif(body);
+        });
+        const list = body.querySelector('.al-notif-list');
+        if(!notifs.length){ list.innerHTML='<div class="al-empty">Nessuna notifica</div>'; return; }
+        list.innerHTML = notifs.map(n=>{
+          let icon='◎', text='', href='#', cover='';
+          switch(n.type){
+            case 'AIRING':
+              icon='▶'; text=`Ep ${n.episode} di <b>${escapeHtml(n.media?.title?.userPreferred||'')}</b> disponibile`;
+              href=n.media?.siteUrl||'#'; cover=n.media?.coverImage?.medium||'';
+              break;
+            case 'RELATED_MEDIA_ADDITION':
+              icon='➕'; text=`<b>${escapeHtml(n.media?.title?.userPreferred||'')}</b> aggiunto ai correlati`;
+              href=n.media?.siteUrl||'#'; cover=n.media?.coverImage?.medium||'';
+              break;
+            case 'ACTIVITY_MENTION':
+              icon='@'; text=`<b>${escapeHtml(n.user?.name||'')}</b> ti ha menzionato`; break;
+            case 'ACTIVITY_REPLY':
+              icon='↩'; text=`<b>${escapeHtml(n.user?.name||'')}</b> ha risposto`; break;
+            case 'ACTIVITY_LIKE':
+              icon='♥'; text=`<b>${escapeHtml(n.user?.name||'')}</b> ha messo like`; break;
+            case 'FOLLOWING':
+              icon='❤'; text=`<b>${escapeHtml(n.user?.name||'')}</b> ti segue ora`;
+              cover=n.user?.avatar?.medium||''; break;
+            case 'MEDIA_DATA_CHANGE':
+              icon='✏'; text=`Dati aggiornati: <b>${escapeHtml(n.media?.title?.userPreferred||'')}</b>`;
+              href=n.media?.siteUrl||'#'; break;
+            default:
+              icon='◎'; text=escapeHtml(n.type||'');
+          }
+          const imgHtml = cover ? `<img class="al-notif-cover" src="${escapeHtml(cover)}" alt="">` : `<span class="al-notif-icon">${icon}</span>`;
+          return `<${href!=='#'?`a href="${escapeHtml(href)}" target="_blank" rel="noopener"`:'div'} class="al-notif-item">
+            ${imgHtml}
+            <span class="al-notif-text">${text}</span>
+          </${href!=='#'?'a':'div'}>`;
+        }).join('');
+      })
+      .catch(e=>{
+        if(e.message&&e.message.toLowerCase().includes('invalid')){
+          localStorage.removeItem(LS_ANILIST_TOKEN);
+          renderAniListAuth(body,'dash_al_clientid');
+        } else {
+          body.innerHTML = `<div class="al-empty">Errore: ${escapeHtml(e.message)}</div>`;
+        }
+      });
+  }
+
+  /* ---- Widget 3: List Tracker (aggiorna la tua lista) ---- */
+  function buildAniListTracker(body){
+    const token = getAniListToken();
+    if(!token){ renderAniListAuth(body,'dash_al_clientid'); return; }
+
+    body.innerHTML = '<div class="al-loading">Caricamento…</div>';
+
+    const VIEWER_Q = `query{ Viewer{ id name } }`;
+    aniGQL(VIEWER_Q,{},token).then(vd=>{
+      const userId = vd?.Viewer?.id;
+      const userName = vd?.Viewer?.name||'';
+      localStorage.setItem(LS_ANILIST_USER, JSON.stringify({id:userId,name:userName}));
+
+      const LIST_Q = `
+        query($userId:Int){
+          MediaListCollection(userId:$userId,type:ANIME,status:CURRENT,sort:UPDATED_TIME_DESC){
+            lists{
+              entries{
+                id mediaId progress score(format:POINT_10)
+                media{
+                  id title{ userPreferred } episodes coverImage{ medium color }
+                  siteUrl nextAiringEpisode{ episode }
+                }
+              }
+            }
+          }
+        }`;
+
+      return aniGQL(LIST_Q,{userId},token).then(ld=>{
+        const entries = (ld?.MediaListCollection?.lists||[]).flatMap(l=>l.entries||[]);
+        body.innerHTML = `
+          <div class="al-header">
+            <span>▶ ${escapeHtml(userName)} — In corso</span>
+            <button class="al-logout-btn" title="Disconnetti">Esci</button>
+          </div>
+          <div class="al-search-row">
+            <input class="al-search" type="text" placeholder="Filtra anime…">
+          </div>
+          <div class="al-tracker-list"></div>`;
+        body.querySelector('.al-logout-btn').addEventListener('click',()=>{
+          localStorage.removeItem(LS_ANILIST_TOKEN);
+          buildAniListTracker(body);
+        });
+        const listEl = body.querySelector('.al-tracker-list');
+        const searchEl = body.querySelector('.al-search');
+
+        function renderEntries(filter=''){
+          const lf = filter.toLowerCase();
+          const shown = filter ? entries.filter(e=>e.media?.title?.userPreferred?.toLowerCase().includes(lf)) : entries;
+          if(!shown.length){ listEl.innerHTML='<div class="al-empty">Nessun anime in corso</div>'; return; }
+          listEl.innerHTML = shown.map(entry=>{
+            const m = entry.media;
+            const total = m.episodes||m.nextAiringEpisode?.episode||'?';
+            const color = m.coverImage?.color||'#3db4f2';
+            return `<div class="al-tracker-item" data-entry-id="${entry.id}" data-media-id="${m.id}" data-progress="${entry.progress}" data-total="${typeof total==='number'?total:0}" style="--al-color:${escapeHtml(color)}">
+              <img class="al-cover-sm" src="${escapeHtml(m.coverImage?.medium||'')}" alt="" loading="lazy">
+              <div class="al-tracker-info">
+                <a class="al-title" href="${escapeHtml(m.siteUrl)}" target="_blank" rel="noopener">${escapeHtml(m.title?.userPreferred||'')}</a>
+                <div class="al-progress-row">
+                  <button class="al-ep-btn al-ep-minus" title="Ep -1">−</button>
+                  <span class="al-ep-cur">${entry.progress}</span>
+                  <span class="al-ep-sep">/</span>
+                  <span class="al-ep-tot">${total}</span>
+                  <button class="al-ep-btn al-ep-plus" title="Ep +1">+</button>
+                  <select class="al-status-sel">
+                    <option value="CURRENT" selected>In corso</option>
+                    <option value="COMPLETED">Completato</option>
+                    <option value="PAUSED">In pausa</option>
+                    <option value="DROPPED">Abbandonato</option>
+                    <option value="PLANNING">Pianificato</option>
+                  </select>
+                </div>
+              </div>
+            </div>`;
+          }).join('');
+
+          // bind buttons
+          listEl.querySelectorAll('.al-tracker-item').forEach(item=>{
+            const entryId = parseInt(item.dataset.entryId);
+            const mediaId = parseInt(item.dataset.mediaId);
+            let progress = parseInt(item.dataset.progress)||0;
+            const total = parseInt(item.dataset.total)||0;
+            const curEl = item.querySelector('.al-ep-cur');
+            const statusSel = item.querySelector('.al-status-sel');
+            let saveTimer = null;
+
+            function saveProgress(){
+              clearTimeout(saveTimer);
+              saveTimer = setTimeout(async()=>{
+                item.classList.add('al-saving');
+                try{
+                  const MUT = `mutation($id:Int,$mediaId:Int,$progress:Int,$status:MediaListStatus){
+                    SaveMediaListEntry(id:$id,mediaId:$mediaId,progress:$progress,status:$status){ id progress status }
+                  }`;
+                  await aniGQL(MUT,{id:entryId,mediaId,progress,status:statusSel.value},token);
+                  item.classList.remove('al-saving');
+                  item.classList.add('al-saved');
+                  setTimeout(()=>item.classList.remove('al-saved'),1500);
+                }catch(err){
+                  item.classList.remove('al-saving');
+                  item.classList.add('al-error');
+                  setTimeout(()=>item.classList.remove('al-error'),2000);
+                }
+              },800);
+            }
+
+            item.querySelector('.al-ep-plus').addEventListener('click',()=>{
+              if(total && progress>=total) return;
+              progress++;
+              curEl.textContent = progress;
+              saveProgress();
+            });
+            item.querySelector('.al-ep-minus').addEventListener('click',()=>{
+              if(progress<=0) return;
+              progress--;
+              curEl.textContent = progress;
+              saveProgress();
+            });
+            statusSel.addEventListener('change', saveProgress);
+          });
+        }
+
+        renderEntries();
+        searchEl.addEventListener('input',()=>renderEntries(searchEl.value));
+      });
+    }).catch(e=>{
+      if(e.message&&e.message.toLowerCase().includes('invalid')){
+        localStorage.removeItem(LS_ANILIST_TOKEN);
+        renderAniListAuth(body,'dash_al_clientid');
+      } else {
+        body.innerHTML = `<div class="al-empty">Errore: ${escapeHtml(e.message)}</div>`;
+      }
+    });
+  }
+
   /* ===================== MODALS (widget + settings) ===================== */
   const modalBackdrop = document.getElementById('modalBackdrop');
   const settingsBackdrop = document.getElementById('settingsBackdrop');
@@ -2016,6 +2438,84 @@
   });
 
   /* ===================== INIT ===================== */
+  // Inject runtime styles for new components
+  (function injectStyles(){
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Weather hourly forecast strip */
+      .weather-forecast{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px;scrollbar-width:none;margin-top:4px;}
+      .weather-forecast::-webkit-scrollbar{display:none;}
+      .wf-slot{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:36px;flex-shrink:0;}
+      .wf-time{font-size:9px;opacity:.5;letter-spacing:.04em;text-transform:uppercase;}
+      .wf-icon{font-size:16px;line-height:1;}
+      .wf-temp{font-size:11px;font-weight:600;}
+      /* AniList widgets */
+      .al-auth{display:flex;flex-direction:column;gap:10px;padding:8px;}
+      .al-auth-logo{font-size:18px;font-weight:700;color:#3db4f2;letter-spacing:.06em;}
+      .al-auth-hint{font-size:11px;opacity:.7;margin:0;line-height:1.5;}
+      .al-auth-hint a{color:#3db4f2;}
+      .al-auth-note{font-size:10px;opacity:.5;line-height:1.4;}
+      .al-auth-note code{background:var(--c-surface2,rgba(255,255,255,.08));padding:1px 4px;border-radius:3px;font-size:10px;}
+      .al-client-input,.al-search{width:100%;padding:6px 8px;background:var(--c-surface2,rgba(255,255,255,.08));border:1px solid var(--c-border,rgba(255,255,255,.12));border-radius:6px;color:inherit;font-size:12px;box-sizing:border-box;}
+      .al-go-btn,.al-login-btn{display:inline-block;padding:7px 16px;background:#3db4f2;color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;letter-spacing:.04em;}
+      .al-go-btn:hover,.al-login-btn:hover{background:#5bc4ff;}
+      .al-loading,.al-empty{padding:20px;opacity:.5;font-size:12px;text-align:center;}
+      .al-header{display:flex;align-items:center;justify-content:space-between;padding:4px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;opacity:.7;}
+      .al-logout-btn{background:none;border:none;color:inherit;opacity:.4;cursor:pointer;font-size:11px;padding:0;}
+      .al-logout-btn:hover{opacity:.8;}
+      /* Recent list */
+      .al-recent-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:calc(100% - 36px);}
+      .al-recent-item{display:flex;gap:8px;align-items:center;text-decoration:none;color:inherit;padding:5px 6px;border-radius:6px;border-left:3px solid var(--al-color,#3db4f2);background:var(--c-surface2,rgba(255,255,255,.04));transition:background .15s;}
+      .al-recent-item:hover{background:var(--c-surface3,rgba(255,255,255,.1));}
+      .al-cover{width:36px;height:50px;object-fit:cover;border-radius:4px;flex-shrink:0;}
+      .al-cover-sm{width:28px;height:40px;object-fit:cover;border-radius:3px;flex-shrink:0;}
+      .al-recent-info{display:flex;flex-direction:column;gap:3px;min-width:0;}
+      .al-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;}
+      .al-meta{font-size:10px;opacity:.55;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+      .al-status-badge{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;letter-spacing:.04em;background:var(--al-color,#3db4f2);color:#000;}
+      .al-status-badge.al-status-current{background:#3db4f2;color:#000;}
+      .al-status-badge.al-status-completed{background:#2ecc71;color:#000;}
+      .al-status-badge.al-status-paused{background:#e67e22;color:#000;}
+      .al-status-badge.al-status-dropped{background:#e74c3c;color:#fff;}
+      /* Notification list */
+      .al-notif-list{display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:calc(100% - 36px);}
+      .al-notif-item{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:6px;background:var(--c-surface2,rgba(255,255,255,.04));font-size:11px;line-height:1.4;color:inherit;text-decoration:none;}
+      .al-notif-item:hover{background:var(--c-surface3,rgba(255,255,255,.1));}
+      .al-notif-cover{width:24px;height:34px;object-fit:cover;border-radius:3px;flex-shrink:0;}
+      .al-notif-icon{font-size:14px;width:24px;text-align:center;flex-shrink:0;}
+      .al-notif-text{min-width:0;}
+      /* Tracker */
+      .al-search-row{margin-bottom:6px;}
+      .al-tracker-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:calc(100% - 72px);}
+      .al-tracker-item{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:6px;border-left:3px solid var(--al-color,#3db4f2);background:var(--c-surface2,rgba(255,255,255,.04));transition:opacity .2s,background .15s;}
+      .al-tracker-item.al-saving{opacity:.5;}
+      .al-tracker-item.al-saved{background:rgba(46,204,113,.15);}
+      .al-tracker-item.al-error{background:rgba(231,76,60,.15);}
+      .al-tracker-info{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;}
+      .al-progress-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+      .al-ep-btn{background:var(--c-surface2,rgba(255,255,255,.1));border:none;color:inherit;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;}
+      .al-ep-btn:hover{background:var(--c-surface3,rgba(255,255,255,.2));}
+      .al-ep-cur{font-size:13px;font-weight:700;min-width:16px;text-align:center;}
+      .al-ep-sep,.al-ep-tot{font-size:11px;opacity:.5;}
+      .al-status-sel{background:var(--c-surface2,rgba(255,255,255,.08));border:1px solid var(--c-border,rgba(255,255,255,.12));border-radius:4px;color:inherit;font-size:10px;padding:2px 4px;cursor:pointer;margin-left:4px;}
+      /* Offline banner */
+      #offlineBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;
+        background:#e74c3c;color:#fff;text-align:center;font-size:12px;
+        letter-spacing:.08em;padding:5px 0;font-family:inherit;}
+      body.offline #offlineBanner{display:block;}
+    `;
+    document.head.appendChild(style);
+    // Offline/online detection
+    const banner = document.createElement('div');
+    banner.id = 'offlineBanner';
+    banner.textContent = '• OFFLINE — showing cached data';
+    document.body.prepend(banner);
+    function syncOnline(){ document.body.classList.toggle('offline', !navigator.onLine); }
+    syncOnline();
+    window.addEventListener('online', syncOnline);
+    window.addEventListener('offline', syncOnline);
+  })();
+
   // Apply i18n first
   applyI18n();
 
