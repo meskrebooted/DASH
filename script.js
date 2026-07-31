@@ -1994,14 +1994,27 @@
     if(e.key==='Escape'){autocomplete.classList.remove('open');return;}
     if(e.key==='ArrowDown'){e.preventDefault();if(!items.length)return;acIndex=Math.min(acIndex+1,items.length-1);selectAutocomplete(acIndex);return;}
     if(e.key==='ArrowUp'){e.preventDefault();acIndex=Math.max(acIndex-1,-1);selectAutocomplete(acIndex);return;}
-    if(e.key==='Tab'||e.key==='Enter'){
+    if(e.key==='Tab'){
+      if(!autocomplete.classList.contains('open')||!acItems.length)return;
+      e.preventDefault();
+      const idx=acIndex>=0?acIndex:0;
+      const item=acItems[idx];
+      if(!item)return;
+      // Tab fills the searchbar only — never opens the browser
+      if(item.type==='bookmark'){searchInput.value=item.url;}
+      else if(item.type==='bang'){searchInput.value=item.bang+' ';}
+      else{searchInput.value=item.query||'';}
+      acIndex=idx;
+      selectAutocomplete(idx);
+      renderAutocomplete(searchInput.value);
+      return;
+    }
+    if(e.key==='Enter'){
       if(acIndex>=0&&acItems[acIndex]){e.preventDefault();executeAutocomplete(acItems[acIndex]);return;}
-      if(e.key==='Enter'){
-        e.preventDefault();const v=searchInput.value.trim();if(!v)return;
-        const bangKey=Object.keys(BANGS).find(b=>v.toLowerCase().startsWith(b+' '));
-        const url=bangKey?BANGS[bangKey](v.slice(bangKey.length).trim()):'https://www.google.com/search?q='+encodeURIComponent(v);
-        window.open(url,'_blank');searchInput.value='';autocomplete.classList.remove('open');searchHint.textContent='';
-      }
+      e.preventDefault();const v=searchInput.value.trim();if(!v)return;
+      const bangKey=Object.keys(BANGS).find(b=>v.toLowerCase().startsWith(b+' '));
+      const url=bangKey?BANGS[bangKey](v.slice(bangKey.length).trim()):'https://www.google.com/search?q='+encodeURIComponent(v);
+      window.open(url,'_blank');searchInput.value='';autocomplete.classList.remove('open');searchHint.textContent='';
     }
   });
 
@@ -2011,7 +2024,6 @@
 
   // Render grid immediately so widgets appear without waiting for geolocation
   renderGrid();
-  window.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); searchInput?.focus(); } });
   // Then request geolocation; if granted, re-render so map/weather can use coords
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
