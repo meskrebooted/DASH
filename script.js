@@ -2010,7 +2010,7 @@
 
   // Render grid immediately so widgets appear without waiting for geolocation
   renderGrid();
-
+  window.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); searchInput?.focus(); } });
   // Then request geolocation; if granted, re-render so map/weather can use coords
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
