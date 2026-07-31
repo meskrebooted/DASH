@@ -1997,16 +1997,13 @@
     if(e.key==='Tab'){
       if(!autocomplete.classList.contains('open')||!acItems.length)return;
       e.preventDefault();
-      const idx=acIndex>=0?acIndex:0;
-      const item=acItems[idx];
+      acIndex=Math.min(acIndex+1,acItems.length-1);
+      selectAutocomplete(acIndex);
+      const item=acItems[acIndex];
       if(!item)return;
-      // Tab fills the searchbar only — never opens the browser
       if(item.type==='bookmark'){searchInput.value=item.url;}
       else if(item.type==='bang'){searchInput.value=item.bang+' ';}
       else{searchInput.value=item.query||'';}
-      acIndex=idx;
-      selectAutocomplete(idx);
-      renderAutocomplete(searchInput.value);
       return;
     }
     if(e.key==='Enter'){
