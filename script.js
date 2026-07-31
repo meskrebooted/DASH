@@ -1873,6 +1873,7 @@
 
   /* ===================== SEARCH BAR + AUTOCOMPLETE ===================== */
   const searchInput = document.getElementById('searchInput');
+  window.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); searchInput?.focus(); } });
   const searchHint = document.getElementById('searchHint');
   const autocomplete = document.getElementById('autocomplete');
   let acIndex = -1;
