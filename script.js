@@ -2080,10 +2080,10 @@
             lists{
               name status
               entries{
-                id mediaId progress score(format:POINT_100) isFavourite
+                id mediaId progress score(format:POINT_100)
                 media{
                   id title{ userPreferred } episodes coverImage{ large medium color }
-                  siteUrl nextAiringEpisode{ episode } averageScore
+                  siteUrl nextAiringEpisode{ episode } averageScore isFavourite
                 }
               }
             }
@@ -2130,7 +2130,7 @@
         function openEditPanel(entry, onSaved){
           const m = entry.media;
           const total = m.episodes||m.nextAiringEpisode?.episode||'?';
-          const isFav = entry.isFavourite;
+          const isFav = entry.media?.isFavourite||false;
           editPanel.innerHTML = `
             <div class="al-ep-header">
               <img class="al-ep-cover" src="${escapeHtml(m.coverImage?.large||m.coverImage?.medium||'')}" alt="">
@@ -2205,7 +2205,7 @@
               // Update local entry data
               entry.progress = newProgress;
               entry.score = newScore;
-              entry.isFavourite = favState;
+              if(entry.media) entry.media.isFavourite = favState;
               entry._currentStatus = newStatus;
               // If status changed, move between categories
               if(newStatus !== activeTab){
@@ -2273,7 +2273,7 @@
                 <span class="al-poster-name">${escapeHtml(m.title?.userPreferred||'')}</span>
                 ${activeTab==='CURRENT'||activeTab==='REPEATING'?`<span class="al-poster-ep">${entry.progress}/${total}</span>`:''}
                 ${entry.score?`<span class="al-poster-score">★${Math.round(entry.score/10)}</span>`:''}
-                ${entry.isFavourite?'<span class="al-poster-fav">♥</span>':''}
+                ${entry.media?.isFavourite?'<span class="al-poster-fav">♥</span>':''}
               </div>
             </div>`;
           }).join('');
