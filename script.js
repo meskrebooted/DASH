@@ -2080,7 +2080,7 @@
             lists{
               name status
               entries{
-                id mediaId progress score(format:POINT_100_DECIMAL) isFavourite
+                id mediaId progress score(format:POINT_100) isFavourite
                 media{
                   id title{ userPreferred } episodes coverImage{ large medium color }
                   siteUrl nextAiringEpisode{ episode } averageScore
