@@ -50,16 +50,16 @@
       'close': 'Close',
       'settings': '• SETTINGS',
       'lang': 'Language',
-      'lang-desc': 'Interface in Italian or English',
-      'complex': 'Complex layout',
-      'complex-desc': 'Free resize & drag widgets anywhere on a 12-column grid',
+      'lang-desc': 'Switch interface between English and Italian',
+      'complex': 'Advanced layout',
+      'complex-desc': 'Freely resize and drag widgets on a 12-column grid',
       'byok': 'BYOK AI',
-      'byok-desc': 'API key, provider and model configuration for Chat BYOK',
+      'byok-desc': 'API key, provider and model for the Chat BYOK widget',
       'configure': 'Configure',
-      'reset': 'Reset',
-      'reset-desc': 'Restore default widgets and arrangement',
-      'clear': 'Clear',
-      'clear-desc': 'Erase notes, todos, events, bookmarks',
+      'reset': 'Reset layout',
+      'reset-desc': 'Restore the default widget layout',
+      'clear': 'Clear data',
+      'clear-desc': 'Delete notes, todos, events and bookmarks',
       'customize': 'Customize',
       'no-widgets': 'No widgets yet — click "+ Add widget" to get started.',
       'widget-title': {
@@ -81,13 +81,13 @@
         timer:'Pomodoro 25/5 cycles',
         bookmarks:'Quick link grid, editable',
         news:'Top stories from Hacker News',
-        chatsimple:'Free AI chat (no key), supports images/files',
-        chatbyok:'Bring your own key (OpenAI, Anthropic, NVIDIA NIM, Groq, etc.)',
-        github:'GitHub user profile stats',
+        chatsimple:'Free AI chat (no key needed), supports images and files',
+        chatbyok:'Bring your own API key — OpenAI, Anthropic, Groq, and more',
+        github:'GitHub user profile and stats',
         worldclock:'Multiple timezones at a glance',
-        anilistrecent:'Recently aired anime via AniList',
-        anilistnotif:'Your AniList notifications',
-        anilisttracker:'Update your anime list directly'
+        anilistrecent:'Anime aired in the last 7 days via AniList',
+        anilistnotif:'Your AniList activity notifications',
+        anilisttracker:'Browse and update your AniList anime library'
       },
       // customize modal titles
       'cust-bookmarks-title': 'CUSTOMIZE BOOKMARKS',
@@ -101,7 +101,7 @@
       'cust-github-title': 'CUSTOMIZE GITHUB',
       'cust-github-sub': 'Default GitHub username shown when the widget loads',
       'cust-worldclock-title': 'CUSTOMIZE WORLD CLOCK',
-      'cust-worldclock-sub': 'Pick the cities and timezones shown in the grid',
+      'cust-worldclock-sub': 'Choose the cities and timezones shown in the grid',
       'cust-notes-title': 'CUSTOMIZE NOTES',
       'cust-notes-sub': 'Set the default placeholder text',
       'cust-todo-title': 'CUSTOMIZE TODO',
@@ -111,7 +111,7 @@
       'lbl-url': 'URL',
       'lbl-city': 'City',
       'lbl-tz': 'Timezone',
-      'lbl-coin-id': 'CoinGecko id',
+      'lbl-coin-id': 'CoinGecko ID',
       'lbl-sym': 'Symbol',
       'lbl-source': 'Source',
       'lbl-username': 'Username',
@@ -138,8 +138,8 @@
       'configure': 'Configura',
       'reset': 'Reset',
       'reset-desc': 'Ripristina i widget predefiniti',
-      'clear': 'Cancella',
-      'clear-desc': 'Elimina note, todo, eventi, segnalibri',
+      'clear': 'Cancella dati',
+      'clear-desc': 'Elimina note, todo, eventi e segnalibri',
       'customize': 'Personalizza',
       'no-widgets': 'Nessun widget — clicca "+ Aggiungi widget" per iniziare.',
       'widget-title': {
@@ -165,9 +165,9 @@
         chatbyok:'Porta la tua chiave (OpenAI, Anthropic, NVIDIA NIM, Groq, ecc.)',
         github:'Statistiche profilo GitHub',
         worldclock:'Più fusi orari a colpo d\'occhio',
-        anilistrecent:'Anime usciti di recente via AniList',
-        anilistnotif:'Le tue notifiche AniList',
-        anilisttracker:'Aggiorna la tua lista anime direttamente'
+        anilistrecent:'Anime trasmessi negli ultimi 7 giorni via AniList',
+        anilistnotif:'Le tue notifiche di attività AniList',
+        anilisttracker:'Sfoglia e aggiorna la tua libreria anime AniList'
       },
       'cust-bookmarks-title': 'PERSONALIZZA SEGNALIBRI',
       'cust-bookmarks-sub': 'Aggiungi, rimuovi o riordina i tuoi link rapidi',
@@ -180,7 +180,7 @@
       'cust-github-title': 'PERSONALIZZA GITHUB',
       'cust-github-sub': 'Username GitHub predefinito mostrato all\'apertura del widget',
       'cust-worldclock-title': 'PERSONALIZZA OROLOGIO MONDIALE',
-      'cust-worldclock-sub': 'Scegli le città e i fusi orari da mostrare',
+      'cust-worldclock-sub': 'Scegli le città e i fusi orari mostrati nella griglia',
       'cust-notes-title': 'PERSONALIZZA NOTE',
       'cust-notes-sub': 'Imposta il testo del placeholder predefinito',
       'cust-todo-title': 'PERSONALIZZA TODO',
@@ -2046,12 +2046,26 @@
       });
   }
 
-  /* ---- Widget 3: List Tracker (aggiorna la tua lista) ---- */
+  /* ---- Widget 3: List Tracker - full category browser ---- */
   function buildAniListTracker(body){
     const token = getAniListToken();
     if(!token){ renderAniListAuth(body,'dash_al_clientid'); return; }
 
-    body.innerHTML = '<div class="al-loading">Caricamento…</div>';
+    body.innerHTML = '<div class="al-loading">Loading…</div>';
+
+    const CATEGORIES = [
+      { key:'CURRENT',   label:'Watching',   icon:'▶' },
+      { key:'COMPLETED', label:'Completed',  icon:'✔' },
+      { key:'PLANNING',  label:'Planning',   icon:'⏰' },
+      { key:'PAUSED',    label:'Paused',     icon:'⏸' },
+      { key:'DROPPED',   label:'Dropped',    icon:'✕' },
+      { key:'REPEATING', label:'Rewatching', icon:'↻' }
+    ];
+
+    const STATUS_LABELS = {
+      CURRENT:'Watching', COMPLETED:'Completed', PLANNING:'Planning',
+      PAUSED:'Paused', DROPPED:'Dropped', REPEATING:'Rewatching'
+    };
 
     const VIEWER_Q = `query{ Viewer{ id name } }`;
     aniGQL(VIEWER_Q,{},token).then(vd=>{
@@ -2059,15 +2073,17 @@
       const userName = vd?.Viewer?.name||'';
       localStorage.setItem(LS_ANILIST_USER, JSON.stringify({id:userId,name:userName}));
 
+      // Fetch ALL lists at once
       const LIST_Q = `
         query($userId:Int){
-          MediaListCollection(userId:$userId,type:ANIME,status:CURRENT,sort:UPDATED_TIME_DESC){
+          MediaListCollection(userId:$userId,type:ANIME,sort:UPDATED_TIME_DESC){
             lists{
+              name status
               entries{
-                id mediaId progress score(format:POINT_10)
+                id mediaId progress score(format:POINT_100_DECIMAL) isFavourite
                 media{
-                  id title{ userPreferred } episodes coverImage{ medium color }
-                  siteUrl nextAiringEpisode{ episode }
+                  id title{ userPreferred } episodes coverImage{ large medium color }
+                  siteUrl nextAiringEpisode{ episode } averageScore
                 }
               }
             }
@@ -2075,108 +2091,211 @@
         }`;
 
       return aniGQL(LIST_Q,{userId},token).then(ld=>{
-        const entries = (ld?.MediaListCollection?.lists||[]).flatMap(l=>l.entries||[]);
+        const allLists = ld?.MediaListCollection?.lists||[];
+        // Build a map: status -> entries[]
+        const byStatus = {};
+        allLists.forEach(list=>{
+          const s = list.status||list.name;
+          byStatus[s] = list.entries||[];
+        });
+
+        let activeTab = 'CURRENT';
+
         body.innerHTML = `
-          <div class="al-header">
-            <span>▶ ${escapeHtml(userName)} — In corso</span>
-            <button class="al-logout-btn" title="Disconnetti">Esci</button>
-          </div>
-          <div class="al-search-row">
-            <input class="al-search" type="text" placeholder="Filtra anime…">
-          </div>
-          <div class="al-tracker-list"></div>`;
+          <div class="al-tracker-wrap">
+            <div class="al-trk-header">
+              <span class="al-trk-user">▶ ${escapeHtml(userName)}</span>
+              <button class="al-logout-btn" title="Logout">Exit</button>
+            </div>
+            <div class="al-tab-bar"></div>
+            <div class="al-search-row"><input class="al-search" type="text" placeholder="Filter anime…"></div>
+            <div class="al-grid-wrap"></div>
+          </div>`;
+
         body.querySelector('.al-logout-btn').addEventListener('click',()=>{
           localStorage.removeItem(LS_ANILIST_TOKEN);
           buildAniListTracker(body);
         });
-        const listEl = body.querySelector('.al-tracker-list');
-        const searchEl = body.querySelector('.al-search');
 
-        function renderEntries(filter=''){
-          const lf = filter.toLowerCase();
-          const shown = filter ? entries.filter(e=>e.media?.title?.userPreferred?.toLowerCase().includes(lf)) : entries;
-          if(!shown.length){ listEl.innerHTML='<div class="al-empty">Nessun anime in corso</div>'; return; }
-          listEl.innerHTML = shown.map(entry=>{
-            const m = entry.media;
-            const total = m.episodes||m.nextAiringEpisode?.episode||'?';
-            const color = m.coverImage?.color||'#3db4f2';
-            return `<div class="al-tracker-item" data-entry-id="${entry.id}" data-media-id="${m.id}" data-progress="${entry.progress}" data-total="${typeof total==='number'?total:0}" style="--al-color:${escapeHtml(color)}">
-              <img class="al-cover-sm" src="${escapeHtml(m.coverImage?.medium||'')}" alt="" loading="lazy">
-              <div class="al-tracker-info">
-                <a class="al-title" href="${escapeHtml(m.siteUrl)}" target="_blank" rel="noopener">${escapeHtml(m.title?.userPreferred||'')}</a>
-                <div class="al-progress-row">
-                  <button class="al-ep-btn al-ep-minus" title="Ep -1">−</button>
-                  <span class="al-ep-cur">${entry.progress}</span>
-                  <span class="al-ep-sep">/</span>
-                  <span class="al-ep-tot">${total}</span>
-                  <button class="al-ep-btn al-ep-plus" title="Ep +1">+</button>
-                  <select class="al-status-sel">
-                    <option value="CURRENT" selected>In corso</option>
-                    <option value="COMPLETED">Completato</option>
-                    <option value="PAUSED">In pausa</option>
-                    <option value="DROPPED">Abbandonato</option>
-                    <option value="PLANNING">Pianificato</option>
-                  </select>
+        const tabBar   = body.querySelector('.al-tab-bar');
+        const searchEl = body.querySelector('.al-search');
+        const gridWrap = body.querySelector('.al-grid-wrap');
+
+        // Edit panel (overlays body)
+        const editPanel = document.createElement('div');
+        editPanel.className = 'al-edit-panel';
+        editPanel.style.display = 'none';
+        body.appendChild(editPanel);
+
+        function openEditPanel(entry, onSaved){
+          const m = entry.media;
+          const total = m.episodes||m.nextAiringEpisode?.episode||'?';
+          const isFav = entry.isFavourite;
+          editPanel.innerHTML = `
+            <div class="al-ep-header">
+              <img class="al-ep-cover" src="${escapeHtml(m.coverImage?.large||m.coverImage?.medium||'')}" alt="">
+              <div class="al-ep-meta">
+                <a class="al-ep-title" href="${escapeHtml(m.siteUrl)}" target="_blank" rel="noopener">${escapeHtml(m.title?.userPreferred||'')}</a>
+                ${m.averageScore ? `<div class="al-ep-avg">★ ${m.averageScore}/100</div>` : ''}
+              </div>
+              <button class="al-ep-close">✕</button>
+            </div>
+            <div class="al-ep-fields">
+              <div class="al-ep-field">
+                <label>Episodes watched</label>
+                <div class="al-ep-counter">
+                  <button class="al-ep-dec">−</button>
+                  <input class="al-ep-num" type="number" min="0" max="${typeof total==='number'?total:9999}" value="${entry.progress}">
+                  <span class="al-ep-of">/ ${total}</span>
+                  <button class="al-ep-inc">+</button>
                 </div>
+              </div>
+              <div class="al-ep-field">
+                <label>Status</label>
+                <select class="al-ep-status">
+                  ${Object.entries(STATUS_LABELS).map(([k,v])=>`<option value="${k}" ${k===entry._currentStatus?'selected':''}>${v}</option>`).join('')}
+                </select>
+              </div>
+              <div class="al-ep-field">
+                <label>Score (0–100)</label>
+                <div class="al-ep-score-wrap">
+                  <input class="al-ep-score" type="number" min="0" max="100" step="5" value="${Math.round(entry.score)||0}">
+                  <span class="al-ep-score-unit">/ 100</span>
+                </div>
+              </div>
+              <div class="al-ep-field al-ep-fav-field">
+                <label>Favourite</label>
+                <button class="al-fav-btn ${isFav?'al-fav-on':''}">${isFav?'♥ Favourited':'♡ Add to Favourites'}</button>
+              </div>
+            </div>
+            <div class="al-ep-actions">
+              <button class="al-ep-cancel">Cancel</button>
+              <button class="al-ep-save">Save</button>
+            </div>`;
+
+          editPanel.style.display = 'flex';
+
+          const numEl    = editPanel.querySelector('.al-ep-num');
+          const statusEl = editPanel.querySelector('.al-ep-status');
+          const scoreEl  = editPanel.querySelector('.al-ep-score');
+          const favBtn   = editPanel.querySelector('.al-fav-btn');
+          let favState   = isFav;
+
+          editPanel.querySelector('.al-ep-dec').onclick = ()=>{ const v=parseInt(numEl.value)||0; if(v>0) numEl.value=v-1; };
+          editPanel.querySelector('.al-ep-inc').onclick = ()=>{ const v=parseInt(numEl.value)||0; const mx=parseInt(numEl.max)||9999; if(v<mx) numEl.value=v+1; };
+          favBtn.onclick = ()=>{ favState=!favState; favBtn.classList.toggle('al-fav-on',favState); favBtn.textContent=favState?'♥ Favourited':'♡ Add to Favourites'; };
+          editPanel.querySelector('.al-ep-close').onclick = ()=>{ editPanel.style.display='none'; };
+          editPanel.querySelector('.al-ep-cancel').onclick = ()=>{ editPanel.style.display='none'; };
+          editPanel.querySelector('.al-ep-save').onclick = async ()=>{
+            const saveBtn = editPanel.querySelector('.al-ep-save');
+            saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+            try{
+              const MUT = `mutation($id:Int,$mediaId:Int,$progress:Int,$status:MediaListStatus,$score:Float){
+                SaveMediaListEntry(id:$id,mediaId:$mediaId,progress:$progress,status:$status,score:$score){ id progress status score }
+              }`;
+              const newProgress = parseInt(numEl.value)||0;
+              const newStatus   = statusEl.value;
+              const newScore    = parseFloat(scoreEl.value)||0;
+              await aniGQL(MUT,{id:entry.id,mediaId:entry.mediaId,progress:newProgress,status:newStatus,score:newScore},token);
+              // Toggle favourite if changed
+              if(favState !== isFav){
+                const FAV_MUT = `mutation($id:Int){ ToggleFavourite(animeId:$id){ anime{ nodes{ id } } } }`;
+                await aniGQL(FAV_MUT,{id:entry.mediaId},token);
+              }
+              // Update local entry data
+              entry.progress = newProgress;
+              entry.score = newScore;
+              entry.isFavourite = favState;
+              entry._currentStatus = newStatus;
+              // If status changed, move between categories
+              if(newStatus !== activeTab){
+                const oldArr = byStatus[activeTab]||[];
+                const idx = oldArr.findIndex(e=>e.id===entry.id);
+                if(idx>=0) oldArr.splice(idx,1);
+                if(!byStatus[newStatus]) byStatus[newStatus]=[];
+                entry._currentStatus = newStatus;
+                byStatus[newStatus].unshift(entry);
+              }
+              editPanel.style.display='none';
+              renderGrid(searchEl.value);
+              if(onSaved) onSaved();
+            }catch(err){
+              saveBtn.disabled=false; saveBtn.textContent='Save';
+              saveBtn.style.background='var(--accent)';
+              setTimeout(()=>saveBtn.style.background='',1000);
+            }
+          };
+        }
+
+        // Build tabs
+        function buildTabs(){
+          tabBar.innerHTML = CATEGORIES.map(c=>{
+            const cnt = (byStatus[c.key]||[]).length;
+            return `<button class="al-tab ${c.key===activeTab?'al-tab-active':''}" data-key="${c.key}">
+              <span class="al-tab-icon">${c.icon}</span>
+              <span class="al-tab-label">${c.label}</span>
+              ${cnt?`<span class="al-tab-count">${cnt}</span>`:''}
+            </button>`;
+          }).join('');
+          tabBar.querySelectorAll('.al-tab').forEach(btn=>{
+            btn.addEventListener('click',()=>{
+              activeTab = btn.dataset.key;
+              buildTabs();
+              renderGrid(searchEl.value);
+            });
+          });
+        }
+
+        function renderGrid(filter=''){
+          const entries = byStatus[activeTab]||[];
+          // Attach status to entries for use in edit panel
+          entries.forEach(e=>{ if(!e._currentStatus) e._currentStatus=activeTab; });
+          const lf = filter.toLowerCase();
+          const shown = lf ? entries.filter(e=>e.media?.title?.userPreferred?.toLowerCase().includes(lf)) : entries;
+
+          if(!shown.length){
+            gridWrap.innerHTML = `<div class="al-empty">No anime in this list</div>`;
+            return;
+          }
+
+          gridWrap.innerHTML = `<div class="al-poster-grid"></div>`;
+          const grid = gridWrap.querySelector('.al-poster-grid');
+          grid.innerHTML = shown.map((entry,i)=>{
+            const m = entry.media;
+            const color = m.coverImage?.color||'#3db4f2';
+            const total = m.episodes||m.nextAiringEpisode?.episode||'?';
+            return `<div class="al-poster-item" data-idx="${i}" style="--al-color:${escapeHtml(color)}">
+              <img class="al-poster-img" src="${escapeHtml(m.coverImage?.large||m.coverImage?.medium||'')}" alt="" loading="lazy">
+              <div class="al-poster-hover">
+                <span class="al-poster-hint">Edit</span>
+              </div>
+              <div class="al-poster-footer">
+                <span class="al-poster-name">${escapeHtml(m.title?.userPreferred||'')}</span>
+                ${activeTab==='CURRENT'||activeTab==='REPEATING'?`<span class="al-poster-ep">${entry.progress}/${total}</span>`:''}
+                ${entry.score?`<span class="al-poster-score">★${Math.round(entry.score/10)}</span>`:''}
+                ${entry.isFavourite?'<span class="al-poster-fav">♥</span>':''}
               </div>
             </div>`;
           }).join('');
 
-          // bind buttons
-          listEl.querySelectorAll('.al-tracker-item').forEach(item=>{
-            const entryId = parseInt(item.dataset.entryId);
-            const mediaId = parseInt(item.dataset.mediaId);
-            let progress = parseInt(item.dataset.progress)||0;
-            const total = parseInt(item.dataset.total)||0;
-            const curEl = item.querySelector('.al-ep-cur');
-            const statusSel = item.querySelector('.al-status-sel');
-            let saveTimer = null;
-
-            function saveProgress(){
-              clearTimeout(saveTimer);
-              saveTimer = setTimeout(async()=>{
-                item.classList.add('al-saving');
-                try{
-                  const MUT = `mutation($id:Int,$mediaId:Int,$progress:Int,$status:MediaListStatus){
-                    SaveMediaListEntry(id:$id,mediaId:$mediaId,progress:$progress,status:$status){ id progress status }
-                  }`;
-                  await aniGQL(MUT,{id:entryId,mediaId,progress,status:statusSel.value},token);
-                  item.classList.remove('al-saving');
-                  item.classList.add('al-saved');
-                  setTimeout(()=>item.classList.remove('al-saved'),1500);
-                }catch(err){
-                  item.classList.remove('al-saving');
-                  item.classList.add('al-error');
-                  setTimeout(()=>item.classList.remove('al-error'),2000);
-                }
-              },800);
-            }
-
-            item.querySelector('.al-ep-plus').addEventListener('click',()=>{
-              if(total && progress>=total) return;
-              progress++;
-              curEl.textContent = progress;
-              saveProgress();
+          grid.querySelectorAll('.al-poster-item').forEach((el,i)=>{
+            el.addEventListener('click',()=>{
+              const entry = shown[i];
+              openEditPanel(entry, ()=>{ buildTabs(); renderGrid(searchEl.value); });
             });
-            item.querySelector('.al-ep-minus').addEventListener('click',()=>{
-              if(progress<=0) return;
-              progress--;
-              curEl.textContent = progress;
-              saveProgress();
-            });
-            statusSel.addEventListener('change', saveProgress);
           });
         }
 
-        renderEntries();
-        searchEl.addEventListener('input',()=>renderEntries(searchEl.value));
+        buildTabs();
+        renderGrid();
+        searchEl.addEventListener('input',()=>renderGrid(searchEl.value));
       });
     }).catch(e=>{
       if(e.message&&e.message.toLowerCase().includes('invalid')){
         localStorage.removeItem(LS_ANILIST_TOKEN);
         renderAniListAuth(body,'dash_al_clientid');
       } else {
-        body.innerHTML = `<div class="al-empty">Errore: ${escapeHtml(e.message)}</div>`;
+        body.innerHTML = `<div class="al-empty">Error: ${escapeHtml(e.message)}</div>`;
       }
     });
   }
@@ -2503,6 +2622,68 @@
         background:#e74c3c;color:#fff;text-align:center;font-size:12px;
         letter-spacing:.08em;padding:5px 0;font-family:inherit;}
       body.offline #offlineBanner{display:block;}
+
+      /* ---- AL Tracker: category tabs + poster grid ---- */
+      .al-tracker-wrap{display:flex;flex-direction:column;height:100%;gap:0;}
+      .al-trk-header{display:flex;align-items:center;justify-content:space-between;padding:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.06em;opacity:.7;flex-shrink:0;}
+      .al-trk-user{font-size:11px;}
+      .al-tab-bar{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:6px;flex-shrink:0;}
+      .al-tab-bar::-webkit-scrollbar{display:none;}
+      .al-tab{display:flex;align-items:center;gap:4px;padding:5px 9px;border:1px solid rgba(255,255,255,.1);border-radius:20px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.45);cursor:pointer;font-size:10px;font-weight:600;letter-spacing:.04em;white-space:nowrap;transition:.15s;}
+      .al-tab:hover{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.75);}
+      .al-tab.al-tab-active{background:var(--accent,#e5231b);border-color:var(--accent,#e5231b);color:#fff;}
+      .al-tab-icon{font-size:11px;}
+      .al-tab-count{font-size:9px;background:rgba(255,255,255,.15);border-radius:9px;padding:1px 5px;min-width:16px;text-align:center;}
+      .al-tab-active .al-tab-count{background:rgba(0,0,0,.25);}
+      .al-grid-wrap{flex:1;overflow-y:auto;min-height:0;}
+      .al-poster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;padding:4px 0;}
+      .al-poster-item{position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:2px solid transparent;transition:border-color .15s,transform .15s;}
+      .al-poster-item:hover{border-color:var(--al-color,#3db4f2);transform:scale(1.03);}
+      .al-poster-item:hover .al-poster-hover{opacity:1;}
+      .al-poster-img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;}
+      .al-poster-hover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);opacity:0;transition:opacity .15s;pointer-events:none;}
+      .al-poster-hint{font-size:11px;font-weight:700;letter-spacing:.08em;color:#fff;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:20px;}
+      .al-poster-footer{position:absolute;bottom:0;left:0;right:0;padding:18px 6px 5px;background:linear-gradient(transparent,rgba(0,0,0,.85));display:flex;flex-direction:column;gap:2px;}
+      .al-poster-name{font-size:10px;font-weight:600;line-height:1.2;color:#fff;text-shadow:0 1px 3px #000;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+      .al-poster-ep{font-size:9px;color:rgba(255,255,255,.65);font-weight:600;}
+      .al-poster-score{font-size:9px;color:#ffd700;font-weight:700;}
+      .al-poster-fav{font-size:9px;color:#e74c3c;}
+
+      /* Edit panel */
+      .al-edit-panel{position:absolute;inset:0;background:var(--surface,#0b0b0b);z-index:10;flex-direction:column;gap:0;overflow-y:auto;border-radius:inherit;}
+      .al-ep-header{display:flex;gap:10px;align-items:flex-start;padding:12px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;}
+      .al-ep-cover{width:60px;height:85px;object-fit:cover;border-radius:5px;flex-shrink:0;}
+      .al-ep-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+      .al-ep-title{font-size:13px;font-weight:700;color:inherit;text-decoration:none;line-height:1.3;display:block;}
+      .al-ep-title:hover{color:var(--accent,#e5231b);}
+      .al-ep-avg{font-size:11px;opacity:.5;}
+      .al-ep-close{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px;padding:0 2px;flex-shrink:0;align-self:flex-start;}
+      .al-ep-close:hover{color:inherit;}
+      .al-ep-fields{display:flex;flex-direction:column;gap:0;padding:0 12px;}
+      .al-ep-field{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+      .al-ep-field:last-child{border-bottom:none;}
+      .al-ep-field label{display:block;font-size:9px;letter-spacing:.1em;opacity:.45;margin-bottom:6px;text-transform:uppercase;font-weight:600;}
+      .al-ep-counter{display:flex;align-items:center;gap:6px;}
+      .al-ep-dec,.al-ep-inc{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.1);border:none;color:inherit;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.12s;}
+      .al-ep-dec:hover,.al-ep-inc:hover{background:rgba(255,255,255,.2);}
+      .al-ep-num{width:56px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:inherit;border-radius:6px;padding:5px 8px;font-size:14px;font-weight:700;text-align:center;outline:none;}
+      .al-ep-num:focus{border-color:var(--accent,#e5231b);}
+      .al-ep-of{font-size:12px;opacity:.4;}
+      .al-ep-status{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:inherit;border-radius:6px;padding:7px 10px;font-size:13px;outline:none;cursor:pointer;}
+      .al-ep-status:focus{border-color:var(--accent,#e5231b);}
+      .al-ep-score-wrap{display:flex;align-items:center;gap:8px;}
+      .al-ep-score{width:70px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:inherit;border-radius:6px;padding:7px 10px;font-size:14px;font-weight:700;text-align:center;outline:none;}
+      .al-ep-score:focus{border-color:var(--accent,#e5231b);}
+      .al-ep-score-unit{font-size:12px;opacity:.4;}
+      .al-fav-btn{padding:7px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);cursor:pointer;font-size:12px;font-weight:600;transition:.15s;}
+      .al-fav-btn:hover{border-color:rgba(255,255,255,.3);color:inherit;}
+      .al-fav-btn.al-fav-on{background:rgba(231,76,60,.2);border-color:#e74c3c;color:#e74c3c;}
+      .al-ep-actions{display:flex;gap:8px;padding:12px;flex-shrink:0;margin-top:auto;}
+      .al-ep-cancel{flex:1;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.5);cursor:pointer;font-size:13px;}
+      .al-ep-cancel:hover{color:inherit;border-color:rgba(255,255,255,.3);}
+      .al-ep-save{flex:2;padding:9px;border-radius:8px;border:none;background:var(--accent,#e5231b);color:#fff;font-weight:700;cursor:pointer;font-size:13px;transition:.15s;}
+      .al-ep-save:hover{opacity:.85;}
+      .al-ep-save:disabled{opacity:.4;cursor:not-allowed;}
     `;
     document.head.appendChild(style);
     // Offline/online detection
