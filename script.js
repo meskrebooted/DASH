@@ -40,6 +40,45 @@
   const LS_BM     = 'dash_bookmarks_v1';
   const LS_GH     = 'dash_github_v1';
   const LS_LANG   = 'dash_lang_v1';
+  const LS_GEO    = 'dash_geo_cache_v1';
+  const GEO_MAX_AGE = 20 * 60 * 1000; // 20 min: reuse last fix instead of re-prompting/re-polling GPS
+
+  /* ===================== SHARED GEOLOCATION ===================== */
+  // Single source of truth for "where am I" so weather/map (and anything
+  // else) share ONE request instead of each triggering its own permission
+  // prompt. Result is cached for GEO_MAX_AGE so a page refresh doesn't
+  // ask again or re-poll the GPS every time.
+  function loadGeoCache(){
+    try{ return JSON.parse(localStorage.getItem(LS_GEO) || 'null'); }catch(e){ return null; }
+  }
+  function saveGeoCache(lat, lon){
+    localStorage.setItem(LS_GEO, JSON.stringify({ lat, lon, ts: Date.now() }));
+  }
+  let __geoPromise = null;
+  function getSharedLocation(){
+    if(window.__dashGeo) return Promise.resolve(window.__dashGeo);
+    const cached = loadGeoCache();
+    if(cached && (Date.now() - cached.ts) < GEO_MAX_AGE){
+      window.__dashGeo = { lat: cached.lat, lon: cached.lon };
+      return Promise.resolve(window.__dashGeo);
+    }
+    if(__geoPromise) return __geoPromise;
+    if(!navigator.geolocation) return Promise.resolve(null);
+    __geoPromise = new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const loc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          window.__dashGeo = loc;
+          saveGeoCache(loc.lat, loc.lon);
+          __geoPromise = null;
+          resolve(loc);
+        },
+        () => { __geoPromise = null; resolve(null); },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: GEO_MAX_AGE }
+      );
+    });
+    return __geoPromise;
+  }
 
   /* ===================== I18N ===================== */
   const I18N = {
@@ -60,6 +99,13 @@
       'reset-desc': 'Restore the default widget layout',
       'clear': 'Clear data',
       'clear-desc': 'Delete notes, todos, events and bookmarks',
+      'export': 'Export',
+      'export-desc': 'Save layout, widgets and data to a JSON file',
+      'import': 'Import',
+      'import-desc': 'Restore from a previously exported JSON file',
+      'import-confirm': 'This will overwrite your current layout and data. Continue?',
+      'import-success': 'Data imported — reloading…',
+      'import-error': 'Could not read that file — is it a DASH export?',
       'customize': 'Customize',
       'no-widgets': 'No widgets yet — click "+ Add widget" to get started.',
       'widget-title': {
@@ -67,7 +113,8 @@
         notes:'NOTES', crypto:'CRYPTO', map:'MAP', todo:'TODO', timer:'TIMER',
         bookmarks:'BOOKMARKS', news:'NEWS', chatsimple:'CHAT', chatbyok:'CHAT BYOK',
         github:'GITHUB', worldclock:'WORLD CLOCK',
-        anilistrecent:'AL RECENT', anilistnotif:'AL NOTIFS', anilisttracker:'AL TRACKER'
+        anilistrecent:'AL RECENT', anilistnotif:'AL NOTIFS', anilisttracker:'AL TRACKER',
+        webpage:'WEB PAGE', habits:'HABITS'
       },
       'widget-desc': {
         clock:'Live digital clock',
@@ -87,7 +134,9 @@
         worldclock:'Multiple timezones at a glance',
         anilistrecent:'Anime aired in the last 7 days via AniList',
         anilistnotif:'Your AniList activity notifications',
-        anilisttracker:'Browse and update your AniList anime library'
+        anilisttracker:'Browse and update your AniList anime library',
+        webpage:'Embed any website as a small interactive window',
+        habits:'Daily habit tracker with a GitHub-style streak grid'
       },
       // customize modal titles
       'cust-bookmarks-title': 'CUSTOMIZE BOOKMARKS',
@@ -106,6 +155,10 @@
       'cust-notes-sub': 'Set the default placeholder text',
       'cust-todo-title': 'CUSTOMIZE TODO',
       'cust-todo-sub': 'Set the default placeholder text',
+      'cust-webpage-title': 'CUSTOMIZE WEB PAGE',
+      'cust-webpage-sub': 'Set the URL to embed and whether to remember navigation',
+      'cust-habits-title': 'CUSTOMIZE HABITS',
+      'cust-habits-sub': 'Add, remove or reorder the habits you track',
       // field labels
       'lbl-name': 'Name',
       'lbl-url': 'URL',
@@ -117,9 +170,19 @@
       'lbl-username': 'Username',
       'lbl-placeholder': 'Placeholder',
       'lbl-default-city': 'Default city',
+      'lbl-habit-name': 'Habit name',
+      'lbl-remember-nav': 'Remember last visited page',
       'add-link': '+ Add link',
       'add-zone': '+ Add timezone',
       'add-coin': '+ Add coin',
+      'add-habit': '+ Add habit',
+      'wp-placeholder': 'https://example.com',
+      'wp-go': 'Go',
+      'wp-open-ext': 'Open in new tab',
+      'wp-refresh': 'Reload',
+      'wp-blocked-hint': 'If the page stays blank, that site refuses to be embedded (X-Frame-Options/CSP) — use "Open in new tab" instead.',
+      'wp-empty': 'Enter a URL and press Go, or set a default one in Customize.',
+      'your-location': 'Your location',
       'save': 'Save',
       'cancel': 'Cancel'
     },
@@ -140,6 +203,13 @@
       'reset-desc': 'Ripristina i widget predefiniti',
       'clear': 'Cancella dati',
       'clear-desc': 'Elimina note, todo, eventi e segnalibri',
+      'export': 'Esporta',
+      'export-desc': 'Salva layout, widget e dati in un file JSON',
+      'import': 'Importa',
+      'import-desc': 'Ripristina da un file JSON esportato in precedenza',
+      'import-confirm': 'Questo sovrascriverà layout e dati attuali. Continuare?',
+      'import-success': 'Dati importati — ricaricamento…',
+      'import-error': 'Impossibile leggere il file — è un export di DASH?',
       'customize': 'Personalizza',
       'no-widgets': 'Nessun widget — clicca "+ Aggiungi widget" per iniziare.',
       'widget-title': {
@@ -147,7 +217,8 @@
         notes:'NOTE', crypto:'CRIPTO', map:'MAPPA', todo:'TODO', timer:'TIMER',
         bookmarks:'SEGNALIBRI', news:'NOTIZIE', chatsimple:'CHAT', chatbyok:'CHAT BYOK',
         github:'GITHUB', worldclock:'OROLOGIO MONDIALE',
-        anilistrecent:'AL RECENTI', anilistnotif:'AL NOTIFICHE', anilisttracker:'AL TRACKER'
+        anilistrecent:'AL RECENTI', anilistnotif:'AL NOTIFICHE', anilisttracker:'AL TRACKER',
+        webpage:'PAGINA WEB', habits:'ABITUDINI'
       },
       'widget-desc': {
         clock:'Orologio digitale in tempo reale',
@@ -167,7 +238,9 @@
         worldclock:'Più fusi orari a colpo d\'occhio',
         anilistrecent:'Anime trasmessi negli ultimi 7 giorni via AniList',
         anilistnotif:'Le tue notifiche di attività AniList',
-        anilisttracker:'Sfoglia e aggiorna la tua libreria anime AniList'
+        anilisttracker:'Sfoglia e aggiorna la tua libreria anime AniList',
+        webpage:'Incorpora un sito qualsiasi come piccola finestra interattiva',
+        habits:'Tracker abitudini quotidiane con griglia streak stile GitHub'
       },
       'cust-bookmarks-title': 'PERSONALIZZA SEGNALIBRI',
       'cust-bookmarks-sub': 'Aggiungi, rimuovi o riordina i tuoi link rapidi',
@@ -185,6 +258,10 @@
       'cust-notes-sub': 'Imposta il testo del placeholder predefinito',
       'cust-todo-title': 'PERSONALIZZA TODO',
       'cust-todo-sub': 'Imposta il testo del placeholder predefinito',
+      'cust-webpage-title': 'PERSONALIZZA PAGINA WEB',
+      'cust-webpage-sub': 'Imposta l\'URL da incorporare e se ricordare la navigazione',
+      'cust-habits-title': 'PERSONALIZZA ABITUDINI',
+      'cust-habits-sub': 'Aggiungi, rimuovi o riordina le abitudini da tracciare',
       'lbl-name': 'Nome',
       'lbl-url': 'URL',
       'lbl-city': 'Città',
@@ -195,9 +272,19 @@
       'lbl-username': 'Username',
       'lbl-placeholder': 'Placeholder',
       'lbl-default-city': 'Città predefinita',
+      'lbl-habit-name': 'Nome abitudine',
+      'lbl-remember-nav': 'Ricorda ultima pagina visitata',
       'add-link': '+ Aggiungi link',
       'add-zone': '+ Aggiungi fuso',
       'add-coin': '+ Aggiungi cripto',
+      'add-habit': '+ Aggiungi abitudine',
+      'wp-placeholder': 'https://esempio.com',
+      'wp-go': 'Vai',
+      'wp-open-ext': 'Apri in nuova scheda',
+      'wp-refresh': 'Ricarica',
+      'wp-blocked-hint': 'Se la pagina resta vuota, quel sito rifiuta di essere incorporato (X-Frame-Options/CSP) — usa "Apri in nuova scheda".',
+      'wp-empty': 'Inserisci un URL e premi Vai, oppure impostane uno predefinito in Personalizza.',
+      'your-location': 'La tua posizione',
       'save': 'Salva',
       'cancel': 'Annulla'
     }
@@ -273,6 +360,8 @@
       case 'worldclock': html = renderWorldClockCustomizer(w); break;
       case 'notes': html = renderNotesCustomizer(w); break;
       case 'todo': html = renderTodoCustomizer(w); break;
+      case 'webpage': html = renderWebpageCustomizer(w); break;
+      case 'habits': html = renderHabitsCustomizer(w); break;
     }
     if(!html) return;
     custModal.innerHTML = html;
@@ -321,8 +410,16 @@
         bindCustomizerEvents(w);
       });
     }
+    if(type === 'habits'){
+      enableDragReorder(custModal.querySelector('.cust-list'), (items) => {
+        saveCfg('habits', w.id, items);
+        const newHtml = renderHabitsCustomizer(w);
+        custModal.innerHTML = newHtml;
+        bindCustomizerEvents(w);
+      });
+    }
     // delete buttons for list-based customizers
-    if(['bookmarks','worldclock','crypto'].includes(type)){
+    if(['bookmarks','worldclock','crypto','habits'].includes(type)){
       custModal.querySelectorAll('.cust-del').forEach(btn => {
         btn.addEventListener('click', () => {
           const list = custModal.querySelector('.cust-list');
@@ -333,11 +430,14 @@
               return { city: el.querySelector('.cust-city-input').value, tz: el.querySelector('.cust-tz-select').value };
             } else if(type === 'crypto'){
               return { id: el.querySelector('.cust-coin-id').value, sym: el.querySelector('.cust-coin-sym').value };
+            } else if(type === 'habits'){
+              return { name: el.querySelector('.cust-habit-name').value };
             }
           });
           saveCfg(type, currentCustWidget.id, items);
           const newHtml = (type === 'bookmarks' ? renderBookmarksCustomizer(w) :
                           type === 'worldclock' ? renderWorldClockCustomizer(w) :
+                          type === 'habits' ? renderHabitsCustomizer(w) :
                           renderCryptoCustomizer(w));
           custModal.innerHTML = newHtml;
           bindCustomizerEvents(w);
@@ -385,6 +485,8 @@
             return { city: el.querySelector('.cust-city-input').value, tz: el.querySelector('.cust-tz-select').value };
           } else if(currentCustWidget && currentCustWidget.type === 'crypto'){
             return { id: el.querySelector('.cust-coin-id').value, sym: el.querySelector('.cust-coin-sym').value };
+          } else if(currentCustWidget && currentCustWidget.type === 'habits'){
+            return { name: el.querySelector('.cust-habit-name').value };
           }
         });
         onReorder(items);
@@ -428,7 +530,7 @@
   }
 
   function addCustomItem(type){
-    if(type !== 'bookmarks') return;
+    if(type !== 'bookmarks' && type !== 'habits') return;
     const list = custModal.querySelector('.cust-list');
     const empty = list.querySelector('.cust-list-empty');
     if(empty) empty.remove();
@@ -437,13 +539,22 @@
     div.className = 'cust-item';
     div.draggable = true;
     div.dataset.i = idx;
-    div.innerHTML = `
-      <span class="cust-handle">⋮⋮</span>
-      <div class="cust-fields">
-        <input type="text" class="cust-name" placeholder="${t('lbl-name')}">
-        <input type="text" class="cust-url" placeholder="${t('lbl-url')}" value="https://">
-      </div>
-      <button class="cust-del" title="Delete" data-i="${idx}">✕</button>`;
+    if(type === 'bookmarks'){
+      div.innerHTML = `
+        <span class="cust-handle">⋮⋮</span>
+        <div class="cust-fields">
+          <input type="text" class="cust-name" placeholder="${t('lbl-name')}">
+          <input type="text" class="cust-url" placeholder="${t('lbl-url')}" value="https://">
+        </div>
+        <button class="cust-del" title="Delete" data-i="${idx}">✕</button>`;
+    } else {
+      div.innerHTML = `
+        <span class="cust-handle">⋮⋮</span>
+        <div class="cust-fields" style="grid-template-columns: 1fr;">
+          <input type="text" class="cust-habit-name" placeholder="${t('lbl-habit-name')}">
+        </div>
+        <button class="cust-del" title="Delete" data-i="${idx}">✕</button>`;
+    }
     list.appendChild(div);
     // re-bind
     bindCustomizerEvents(currentCustWidget);
@@ -520,6 +631,23 @@
       }
       return;
     }
+    if(type === 'webpage'){
+      let url = custModal.querySelector('#custWebpageUrl').value.trim();
+      if(url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+      const rememberNav = custModal.querySelector('#custWebpageRemember').checked;
+      const prevCfg = loadCfg('webpage', currentCustWidget.id, { url:'', rememberNav:false });
+      saveCfg('webpage', currentCustWidget.id, { url, rememberNav, lastUrl: rememberNav ? prevCfg.lastUrl : '' });
+      closeCustomizer();
+      const widgetEl = document.querySelector(`[data-id="${currentCustWidget.id}"]`);
+      if(widgetEl){
+        const body = widgetEl.querySelector('.widget-body');
+        if(body){
+          body.innerHTML = '';
+          DEFS[type].build(body, currentCustWidget);
+        }
+      }
+      return;
+    }
 
     const list = custModal.querySelector('.cust-list');
     if(!list) return;
@@ -530,6 +658,8 @@
         return { city: el.querySelector('.cust-city-input').value.trim() || 'City', tz: el.querySelector('.cust-tz-select').value || 'UTC' };
       } else if(type === 'crypto'){
         return { id: el.querySelector('.cust-coin-id').value.trim() || 'bitcoin', sym: el.querySelector('.cust-coin-sym').value.trim() || 'BTC' };
+      } else if(type === 'habits'){
+        return { name: el.querySelector('.cust-habit-name').value.trim() || 'Habit' };
       }
     }).filter(it => it.name || it.url || it.city || it.id);
     saveCfg(type, currentCustWidget.id, items);
@@ -701,6 +831,50 @@
       </div>`;
   }
 
+  // --- WEB PAGE ---
+  function renderWebpageCustomizer(w){
+    const cfg = loadCfg('webpage', w.id, { url:'', rememberNav:false });
+    return `
+      <h2>${t('cust-webpage-title')}</h2>
+      <div class="cust-sub">${t('cust-webpage-sub')}</div>
+      <div class="cust-field">
+        <label>${t('lbl-url')}</label>
+        <input type="text" id="custWebpageUrl" value="${escapeHtml(cfg.url || '')}" placeholder="${t('wp-placeholder')}">
+      </div>
+      <div class="cust-field cust-field-row">
+        <label>${t('lbl-remember-nav')}</label>
+        <input type="checkbox" id="custWebpageRemember" ${cfg.rememberNav ? 'checked' : ''}>
+      </div>
+      <div class="cust-actions">
+        <button class="cust-cancel">${t('cancel')}</button>
+        <button class="cust-save">${t('save')}</button>
+      </div>`;
+  }
+
+  // --- HABITS ---
+  function renderHabitsCustomizer(w){
+    const cfg = loadCfg('habits', w.id, [
+      { name:'Leggere' }, { name:'Allenarsi' }, { name:'Bere acqua' }
+    ]);
+    let itemsHtml = cfg.map((it, i) => `
+      <div class="cust-item" draggable="true" data-i="${i}">
+        <span class="cust-handle">⋮⋮</span>
+        <div class="cust-fields" style="grid-template-columns: 1fr;">
+          <input type="text" class="cust-habit-name" value="${escapeHtml(it.name)}" placeholder="${t('lbl-habit-name')}">
+        </div>
+        <button class="cust-del" title="Delete" data-i="${i}">✕</button>
+      </div>`).join('');
+    return `
+      <h2>${t('cust-habits-title')}</h2>
+      <div class="cust-sub">${t('cust-habits-sub')}</div>
+      <div class="cust-list">${itemsHtml}</div>
+      <button class="cust-add">${t('add-habit')}</button>
+      <div class="cust-actions">
+        <button class="cust-cancel">${t('cancel')}</button>
+        <button class="cust-save">${t('save')}</button>
+      </div>`;
+  }
+
   /* ===================== CLOSE CUSTOMIZER ON BACKDROP CLICK ===================== */
   custBackdrop.addEventListener('click', e => {
     if(e.target === custBackdrop) closeCustomizer();
@@ -727,7 +901,9 @@
     worldclock: { icon:'◑', size:'2x1', build: buildWorldClock, customizable: true },
     anilistrecent:  { icon:'▶', size:'2x2', build: buildAniListRecent },
     anilistnotif:   { icon:'◎', size:'1x2', build: buildAniListNotif },
-    anilisttracker: { icon:'✓', size:'2x2', build: buildAniListTracker }
+    anilisttracker: { icon:'✓', size:'2x2', build: buildAniListTracker },
+    webpage:    { icon:'⧉', size:'2x2', build: buildWebpage, customizable: true },
+    habits:     { icon:'▣', size:'1x2', build: buildHabits, customizable: true }
   };
   function widgetTitle(key){ return (I18N[currentLang]['widget-title'] && I18N[currentLang]['widget-title'][key]) || I18N.en['widget-title'][key] || key.toUpperCase(); }
   function widgetDesc(key){ return (I18N[currentLang]['widget-desc'] && I18N[currentLang]['widget-desc'][key]) || I18N.en['widget-desc'][key] || ''; }
@@ -924,7 +1100,7 @@
     const input = row.querySelector('input');
     const btn = row.querySelector('button');
 
-    async function fetchWeather(lat, lon, label){
+    async function fetchWeather(lat, lon, label, opts = {}){
       try{
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
           + `&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m`
@@ -935,7 +1111,9 @@
         main.innerHTML = `<div class="weather-temp">${Math.round(c.temperature_2m)}°</div><div class="weather-cond">${WMO[c.weather_code]||'—'}</div>`;
         loc.textContent = label.toUpperCase();
         sub.innerHTML = `<span>💧 ${c.relative_humidity_2m}%</span><span>💨 ${Math.round(c.wind_speed_10m)} km/h</span>`;
-        localStorage.setItem(LS_CITY, JSON.stringify({lat, lon, label}));
+        // Only pin a manually searched city; geolocation results stay
+        // ephemeral so the widget keeps following your actual position.
+        if(opts.persist) localStorage.setItem(LS_CITY, JSON.stringify({lat, lon, label, manual:true}));
 
         // hourly forecast: next 7 hours
         const hours = d.hourly?.time || [];
@@ -965,7 +1143,7 @@
         if(d.results && d.results.length){
           const g = d.results[0];
           const label = g.name + (g.country_code ? ', '+g.country_code : '');
-          fetchWeather(g.latitude, g.longitude, label);
+          fetchWeather(g.latitude, g.longitude, label, { persist:true });
         } else {
           loc.textContent = 'City not found';
         }
@@ -975,22 +1153,18 @@
     btn.addEventListener('click', ()=>{ if(input.value.trim()) searchCity(input.value.trim()); });
     input.addEventListener('keydown', e=>{ if(e.key==='Enter' && input.value.trim()) searchCity(input.value.trim()); });
 
-    // init: saved city > widget config default > geolocation > default
+    // init priority: manually-pinned city > widget config default > shared live location > fallback
     const saved = JSON.parse(localStorage.getItem(LS_CITY) || 'null');
     const cfg = loadCfg('weather', w.id, { city: '', lat: 0, lon: 0 });
-    if(saved){
+    if(saved && saved.manual){
       fetchWeather(saved.lat, saved.lon, saved.label);
     } else if(cfg.city){
       searchCity(cfg.city);
-    } else if(window.__dashGeo){
-      fetchWeather(window.__dashGeo.lat, window.__dashGeo.lon, 'Your location');
-    } else if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(
-        pos => fetchWeather(pos.coords.latitude, pos.coords.longitude, 'Your location'),
-        () => searchCity('London')
-      );
     } else {
-      searchCity('London');
+      getSharedLocation().then(loc2 => {
+        if(loc2) fetchWeather(loc2.lat, loc2.lon, t('your-location'));
+        else searchCity('London');
+      });
     }
   }
 
@@ -1008,9 +1182,13 @@
     // store ref for modal z-index management
     container._leaflet_map = map;
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '© OSM © CARTO',
-      subdomains: 'abcd',
+    // CARTO's free raster basemaps now require an API key (Aug 2026 policy
+    // change) and watermark unauthenticated tiles. Standard OpenStreetMap
+    // tiles stay keyless; a CSS filter (applied in style.css on
+    // .map-container) recreates the dark look instead.
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      subdomains: 'abc',
       maxZoom: 19
     }).addTo(map);
 
@@ -1028,15 +1206,12 @@
     }
 
     const saved = JSON.parse(localStorage.getItem(LS_CITY) || 'null');
-    if(saved){
+    if(saved && saved.manual){
       locate(saved.lat, saved.lon, saved.label);
-    } else if(window.__dashGeo){
-      locate(window.__dashGeo.lat, window.__dashGeo.lon, 'Your location');
-    } else if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(
-        pos => locate(pos.coords.latitude, pos.coords.longitude, 'Your location'),
-        () => {} // keep default view
-      );
+    } else {
+      getSharedLocation().then(loc => {
+        if(loc) locate(loc.lat, loc.lon, t('your-location'));
+      });
     }
 
     // invalidate size after layout settles
@@ -1827,6 +2002,150 @@
     setInterval(paint, 1000);
   }
 
+  /* ===================== WEB PAGE (mini browser) ===================== */
+  function buildWebpage(body, w){
+    const cfg = loadCfg('webpage', w.id, { url:'', rememberNav:false, lastUrl:'' });
+    body.classList.add('wp-body');
+
+    const toolbar = document.createElement('div'); toolbar.className = 'wp-toolbar';
+    toolbar.innerHTML = `
+      <input type="text" class="wp-url-input" placeholder="${t('wp-placeholder')}">
+      <button class="wp-btn wp-go" title="${t('wp-go')}">↵</button>
+      <button class="wp-btn wp-reload" title="${t('wp-refresh')}">⟳</button>
+      <button class="wp-btn wp-ext" title="${t('wp-open-ext')}">↗</button>
+    `;
+    const frameWrap = document.createElement('div'); frameWrap.className = 'wp-frame-wrap';
+    const hint = document.createElement('div'); hint.className = 'wp-hint'; hint.textContent = t('wp-blocked-hint');
+    const emptyState = document.createElement('div'); emptyState.className = 'empty-state wp-empty'; emptyState.textContent = t('wp-empty');
+
+    body.appendChild(toolbar);
+    body.appendChild(frameWrap);
+    body.appendChild(emptyState);
+
+    const urlInput = toolbar.querySelector('.wp-url-input');
+    const goBtn = toolbar.querySelector('.wp-go');
+    const reloadBtn = toolbar.querySelector('.wp-reload');
+    const extBtn = toolbar.querySelector('.wp-ext');
+
+    let iframe = null;
+    let hintTimer = null;
+
+    function normalizeUrl(raw){
+      let u = (raw || '').trim();
+      if(!u) return '';
+      if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+      return u;
+    }
+
+    function load(rawUrl, { persist } = { persist: true }){
+      const url = normalizeUrl(rawUrl);
+      if(!url) return;
+      urlInput.value = url;
+      emptyState.style.display = 'none';
+      frameWrap.style.display = 'flex';
+      hint.remove();
+      clearTimeout(hintTimer);
+
+      if(iframe) iframe.remove();
+      iframe = document.createElement('iframe');
+      iframe.className = 'wp-iframe';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+      iframe.referrerPolicy = 'no-referrer';
+      iframe.src = url;
+      frameWrap.appendChild(iframe);
+
+      // Sites that block embedding (X-Frame-Options/CSP) fail silently —
+      // no reliable onerror fires, so surface a hint after a short wait.
+      hintTimer = setTimeout(() => { frameWrap.appendChild(hint); }, 2500);
+      iframe.addEventListener('load', () => { clearTimeout(hintTimer); });
+
+      if(persist){
+        const next = loadCfg('webpage', w.id, { url:'', rememberNav:false, lastUrl:'' });
+        next.lastUrl = url;
+        if(next.rememberNav) saveCfg('webpage', w.id, next);
+      }
+    }
+
+    goBtn.addEventListener('click', () => load(urlInput.value));
+    urlInput.addEventListener('keydown', e => { if(e.key === 'Enter') load(urlInput.value); });
+    reloadBtn.addEventListener('click', () => { if(urlInput.value) load(urlInput.value, { persist:false }); });
+    extBtn.addEventListener('click', () => {
+      const url = normalizeUrl(urlInput.value);
+      if(url) window.open(url, '_blank', 'noopener,noreferrer');
+    });
+
+    frameWrap.style.display = 'none';
+    const startUrl = (cfg.rememberNav && cfg.lastUrl) ? cfg.lastUrl : cfg.url;
+    if(startUrl) load(startUrl);
+    else emptyState.style.display = 'flex';
+  }
+
+  /* ===================== HABIT TRACKER ===================== */
+  function habitDataKey(id){ return 'dash_habits_data_' + id; }
+  function loadHabitData(id){
+    try{ return JSON.parse(localStorage.getItem(habitDataKey(id)) || '{}'); }catch(e){ return {}; }
+  }
+  function saveHabitData(id, data){ localStorage.setItem(habitDataKey(id), JSON.stringify(data)); }
+  function todayKey(d = new Date()){ return d.toISOString().slice(0,10); }
+
+  function buildHabits(body, w){
+    const cfg = loadCfg('habits', w.id, [
+      { name:'Leggere' }, { name:'Allenarsi' }, { name:'Bere acqua' }
+    ]);
+    const data = loadHabitData(w.id); // { habitName: { 'YYYY-MM-DD': true } }
+    const DAYS = 35; // 5 weeks, GitHub-contributions style
+
+    const wrap = document.createElement('div'); wrap.className = 'habits-wrap';
+    body.appendChild(wrap);
+
+    function dateRange(){
+      const arr = [];
+      const now = new Date();
+      for(let i = DAYS - 1; i >= 0; i--){
+        const d = new Date(now); d.setDate(now.getDate() - i);
+        arr.push(todayKey(d));
+      }
+      return arr;
+    }
+
+    function paint(){
+      const days = dateRange();
+      const today = todayKey();
+      wrap.innerHTML = cfg.map(h => {
+        const rec = data[h.name] || {};
+        const streak = days.slice().reverse().reduce((acc, day, idx) => {
+          if(acc.broken) return acc;
+          if(rec[day]) acc.count++;
+          else if(day !== today) acc.broken = true;
+          return acc;
+        }, { count:0, broken:false }).count;
+        const cells = days.map(day => {
+          const on = !!rec[day];
+          return `<span class="habit-cell${on?' on':''}${day===today?' today':''}" data-habit="${escapeHtml(h.name)}" data-day="${day}" title="${day}"></span>`;
+        }).join('');
+        return `
+          <div class="habit-row">
+            <div class="habit-row-top">
+              <span class="habit-name">${escapeHtml(h.name)}</span>
+              <span class="habit-streak">${streak > 0 ? '🔥 ' + streak : ''}</span>
+            </div>
+            <div class="habit-grid">${cells}</div>
+          </div>`;
+      }).join('') || `<div class="empty-state">${t('cust-habits-sub')}</div>`;
+
+      wrap.querySelectorAll('.habit-cell').forEach(cell => {
+        cell.addEventListener('click', () => {
+          const habit = cell.dataset.habit;
+          const day = cell.dataset.day;
+          data[habit] = data[habit] || {};
+          data[habit][day] = !data[habit][day];
+          saveHabitData(w.id, data);
+          paint();
+        });
+      });
+    }
+    paint();
+  }
 
   /* ===================== ANILIST ===================== */
   const LS_ANILIST_TOKEN = 'dash_anilist_token';
@@ -2411,6 +2730,48 @@
     closeModal(settingsBackdrop);
   });
 
+  /* ===================== EXPORT / IMPORT ===================== */
+  document.getElementById('exportData').addEventListener('click', () => {
+    const dump = {};
+    Object.keys(localStorage).forEach(k => {
+      if(k.startsWith('dash_')) dump[k] = localStorage.getItem(k);
+    });
+    const payload = { app:'DASH', version:1, exportedAt: new Date().toISOString(), data: dump };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dash-backup-${todayKey()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  const importFileInput = document.getElementById('importFileInput');
+  document.getElementById('importData').addEventListener('click', () => importFileInput.click());
+  importFileInput.addEventListener('change', () => {
+    const file = importFileInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const payload = JSON.parse(reader.result);
+        if(!payload || payload.app !== 'DASH' || typeof payload.data !== 'object') throw new Error('bad format');
+        if(!confirm(t('import-confirm'))) return;
+        Object.keys(localStorage).filter(k => k.startsWith('dash_')).forEach(k => localStorage.removeItem(k));
+        Object.entries(payload.data).forEach(([k, v]) => localStorage.setItem(k, v));
+        alert(t('import-success'));
+        location.reload();
+      } catch(e){
+        alert(t('import-error'));
+      } finally {
+        importFileInput.value = '';
+      }
+    };
+    reader.readAsText(file);
+  });
+
 
   /* ===================== SEARCH BAR + AUTOCOMPLETE ===================== */
   const searchInput = document.getElementById('searchInput');
@@ -2700,17 +3061,9 @@
   // Apply i18n first
   applyI18n();
 
-  // Render grid immediately so widgets appear without waiting for geolocation
+  // Render grid once. Weather/map widgets ask for location themselves via
+  // getSharedLocation(), which dedupes concurrent calls into a single
+  // permission request and caches the result — no full-grid re-render
+  // and no repeated location prompt on every refresh.
   renderGrid();
-  // Then request geolocation; if granted, re-render so map/weather can use coords
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        window.__dashGeo = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        renderGrid();
-      },
-      () => {},
-      { timeout: 8000 }
-    );
-  }
 })();

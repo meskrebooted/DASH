@@ -78,6 +78,21 @@
     </div>
     <div class="settings-row">
       <div>
+        <div class="sr-label" data-i18n="export">Esporta dati</div>
+        <div class="sr-desc" data-i18n="export-desc">Salva layout, widget e dati in un file JSON</div>
+      </div>
+      <button class="modal-close" id="exportData" style="margin:0; padding:6px 14px;" data-i18n="export">Esporta</button>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="sr-label" data-i18n="import">Importa dati</div>
+        <div class="sr-desc" data-i18n="import-desc">Ripristina da un file JSON esportato in precedenza</div>
+      </div>
+      <button class="modal-close" id="importData" style="margin:0; padding:6px 14px;" data-i18n="import">Importa</button>
+      <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+    </div>
+    <div class="settings-row">
+      <div>
         <div class="sr-label" data-i18n="clear">Cancella tutti i dati</div>
         <div class="sr-desc" data-i18n="clear-desc">Elimina note, todo, eventi, segnalibri</div>
       </div>

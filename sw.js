@@ -1,5 +1,5 @@
 /* ===================== SERVICE WORKER ===================== */
-const CACHE = 'dash-v1';
+const CACHE = 'dash-v3';
 const STATIC = [
   '/',
   '/index.html',

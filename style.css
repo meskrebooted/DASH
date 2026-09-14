@@ -244,6 +244,12 @@
   /* ---------- MAP ---------- */
   .map-container{ flex:1; border-radius:8px; overflow:hidden; min-height:0; position:relative; isolation:isolate; }
   .map-container .leaflet-container{ background:#0a0a0a; z-index:1; }
+  /* OpenStreetMap tiles are keyless but light-themed only — invert them to
+     match the dashboard's dark aesthetic instead of a paid dark basemap. */
+  .map-container .leaflet-tile-pane{ filter:invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.9); }
+  .map-container .leaflet-marker-pane,
+  .map-container .leaflet-popup-pane,
+  .map-container .leaflet-overlay-pane{ filter:none; }
   .leaflet-pane,
   .leaflet-tile,
   .leaflet-marker-icon,
@@ -856,3 +862,52 @@
   .chat-typing::after{ content:'●'; animation:dots 1.2s infinite; }
   @keyframes dots{ 0%{content:'●';} 33%{content:'●●';} 66%{content:'●●●';} }
   .chat-empty{ margin:auto; text-align:center; color:var(--text-faint); font-family:var(--mono); font-size:11px; padding:20px; }
+
+  /* ---------- WEB PAGE (mini browser) ---------- */
+  .wp-body{ padding:0 12px 12px !important; }
+  .wp-toolbar{
+    display:flex; gap:6px; align-items:center;
+    padding:8px 0 8px; flex-shrink:0;
+  }
+  .wp-url-input{
+    flex:1; min-width:0; background:var(--bg); border:1px solid var(--border);
+    color:var(--text); padding:6px 10px; border-radius:8px;
+    font-family:var(--mono); font-size:11px; outline:none;
+  }
+  .wp-url-input:focus{ border-color:var(--accent); }
+  .wp-btn{
+    background:var(--bg); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:8px; width:26px; height:26px; flex-shrink:0;
+    cursor:pointer; font-size:13px; line-height:1;
+  }
+  .wp-btn:hover{ color:var(--accent); border-color:var(--accent-dim); }
+  .wp-frame-wrap{
+    flex:1; min-height:0; border-radius:8px; overflow:hidden;
+    position:relative; background:#0a0a0a; display:flex; flex-direction:column;
+  }
+  .wp-iframe{ flex:1; width:100%; height:100%; border:none; background:#fff; }
+  .wp-hint{
+    position:absolute; left:8px; right:8px; bottom:8px;
+    background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+    color:var(--text-dim); font-family:var(--mono); font-size:10px; line-height:1.5;
+    padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+  }
+  .wp-empty{ display:flex; }
+  .cust-field-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .cust-field-row label{ margin-bottom:0; }
+  .cust-field-row input[type="checkbox"]{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+
+  /* ---------- HABIT TRACKER ---------- */
+  .habits-wrap{ flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+  .habit-row-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+  .habit-name{ font-family:var(--mono); font-size:11.5px; color:var(--text); }
+  .habit-streak{ font-family:var(--mono); font-size:10.5px; color:var(--accent); }
+  .habit-grid{ display:flex; flex-wrap:wrap; gap:3px; }
+  .habit-cell{
+    width:12px; height:12px; border-radius:3px;
+    background:var(--bg); border:1px solid var(--border);
+    cursor:pointer; transition:background .1s, border-color .1s;
+  }
+  .habit-cell:hover{ border-color:var(--accent-dim); }
+  .habit-cell.on{ background:var(--accent); border-color:var(--accent); }
+  .habit-cell.today{ box-shadow:0 0 0 1px var(--text-faint) inset; }
