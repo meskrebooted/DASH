@@ -1293,7 +1293,7 @@
     async function fetchQuote(){
       text.textContent = 'Loading…'; author.textContent='';
       try{
-        const r = await fetch('https://api.quoteslate.vercel.app/api/quotes/random');
+        const r = await fetch('https://api.kanye.rest/');
         const d = await r.json();
         text.textContent = '"' + d.quote + '"';
         author.textContent = '— ' + (d.author || 'Unknown');
