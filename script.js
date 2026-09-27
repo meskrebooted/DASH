@@ -1296,7 +1296,7 @@
         const r = await fetch('https://api.kanye.rest/');
         const d = await r.json();
         text.textContent = '"' + d.quote + '"';
-        author.textContent = '— ' + (d.author || 'Unknown');
+        author.textContent = '— ' + (d.author || 'Kanye West');
       }catch(e){
         text.textContent = 'Could not load a quote right now.';
       }
