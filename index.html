@@ -64,6 +64,26 @@
     </div>
     <div class="settings-row">
       <div>
+        <div class="sr-label" data-i18n="accent-color">Colore d'accento</div>
+        <div class="sr-desc" data-i18n="accent-color-desc">Scegli un colore personalizzato per pulsanti, bordi e bagliori</div>
+      </div>
+      <div class="settings-color-controls">
+        <input type="color" id="accentColorInput" class="color-swatch" value="#e5231b">
+        <button class="icon-reset-btn" id="resetAccentColor" data-i18n-title="reset-color-title" title="Ripristina colore predefinito">&#8635;</button>
+      </div>
+    </div>
+    <div class="settings-row settings-row-bg">
+      <div>
+        <div class="sr-label" data-i18n="custom-bg">Sfondo personalizzato</div>
+        <div class="sr-desc" data-i18n="custom-bg-desc">Incolla il link di un'immagine da usare come sfondo</div>
+      </div>
+      <div class="settings-bg-controls">
+        <input type="url" id="customBgInput" class="bg-url-input" data-i18n-ph="custom-bg-ph" placeholder="https://esempio.com/immagine.jpg" inputmode="url">
+        <button class="icon-reset-btn" id="resetCustomBg" data-i18n-title="reset-bg-title" title="Rimuovi sfondo personalizzato">&#8635;</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div>
         <div class="sr-label" data-i18n="byok">BYOK AI</div>
         <div class="sr-desc" data-i18n="byok-desc">API key, provider e modello per Chat BYOK</div>
       </div>

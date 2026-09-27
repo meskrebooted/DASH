@@ -41,7 +41,49 @@
   const LS_GH     = 'dash_github_v1';
   const LS_LANG   = 'dash_lang_v1';
   const LS_GEO    = 'dash_geo_cache_v1';
+  const LS_ACCENT = 'dash_accent_color_v1';
+  const LS_BG     = 'dash_custom_bg_v1';
+  const DEFAULT_ACCENT = '#e5231b';
   const GEO_MAX_AGE = 20 * 60 * 1000; // 20 min: reuse last fix instead of re-prompting/re-polling GPS
+
+  /* ===================== APPEARANCE (accent color + custom background) ===================== */
+  function hexToRgb(hex){
+    let h = String(hex || '').replace('#', '').trim();
+    if(h.length === 3) h = h.split('').map(c => c + c).join('');
+    const num = parseInt(h, 16);
+    if(h.length !== 6 || Number.isNaN(num)) return { r:229, g:35, b:27 };
+    return { r:(num >> 16) & 255, g:(num >> 8) & 255, b:num & 255 };
+  }
+  function applyAccentColor(hex){
+    const { r, g, b } = hexToRgb(hex);
+    const root = document.documentElement.style;
+    root.setProperty('--accent', hex);
+    root.setProperty('--accent-glow', `rgba(${r},${g},${b},0.35)`);
+    root.setProperty('--accent-dim', `rgb(${Math.round(r*0.3)},${Math.round(g*0.3)},${Math.round(b*0.3)})`);
+  }
+  function applyCustomBg(url){
+    const body = document.body.style;
+    if(url){
+      body.backgroundImage = `linear-gradient(rgba(0,0,0,.72), rgba(0,0,0,.72)), url("${url.replace(/"/g, '%22')}")`;
+      body.backgroundSize = 'cover';
+      body.backgroundPosition = 'center';
+      body.backgroundAttachment = 'fixed';
+      body.backgroundRepeat = 'no-repeat';
+    } else {
+      body.backgroundImage = '';
+      body.backgroundSize = '';
+      body.backgroundPosition = '';
+      body.backgroundAttachment = '';
+      body.backgroundRepeat = '';
+    }
+  }
+  // Apply saved appearance immediately so there's no flash of the default theme
+  (function initAppearance(){
+    const savedAccent = localStorage.getItem(LS_ACCENT);
+    if(savedAccent) applyAccentColor(savedAccent);
+    const savedBg = localStorage.getItem(LS_BG);
+    if(savedBg) applyCustomBg(savedBg);
+  })();
 
   /* ===================== SHARED GEOLOCATION ===================== */
   // Single source of truth for "where am I" so weather/map (and anything
@@ -92,6 +134,13 @@
       'lang-desc': 'Switch interface between English and Italian',
       'complex': 'Advanced layout',
       'complex-desc': 'Freely resize and drag widgets on a 12-column grid',
+      'accent-color': 'Accent color',
+      'accent-color-desc': 'Pick a custom color for buttons, borders and glows',
+      'reset-color-title': 'Reset to default color',
+      'custom-bg': 'Custom background',
+      'custom-bg-desc': 'Paste an image link to use as the dashboard background',
+      'custom-bg-ph': 'https://example.com/image.jpg',
+      'reset-bg-title': 'Remove custom background',
       'byok': 'BYOK AI',
       'byok-desc': 'API key, provider and model for the Chat BYOK widget',
       'configure': 'Configure',
@@ -196,6 +245,13 @@
       'lang-desc': 'Interfaccia in italiano o inglese',
       'complex': 'Layout complesso',
       'complex-desc': 'Ridimensiona e trascina liberamente i widget su una griglia a 12 colonne',
+      'accent-color': 'Colore d\'accento',
+      'accent-color-desc': 'Scegli un colore personalizzato per pulsanti, bordi e bagliori',
+      'reset-color-title': 'Ripristina colore predefinito',
+      'custom-bg': 'Sfondo personalizzato',
+      'custom-bg-desc': 'Incolla il link di un\'immagine da usare come sfondo',
+      'custom-bg-ph': 'https://esempio.com/immagine.jpg',
+      'reset-bg-title': 'Rimuovi sfondo personalizzato',
       'byok': 'BYOK AI',
       'byok-desc': 'API key, provider e modello per Chat BYOK',
       'configure': 'Configura',
@@ -304,6 +360,10 @@
     document.querySelectorAll('[data-i18n-ph]').forEach(el => {
       const key = el.getAttribute('data-i18n-ph');
       el.placeholder = t(key);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      el.title = t(key);
     });
     // re-render widget choice list if modal is closed (so the next time it opens it's localized)
     const langSel = document.getElementById('langSelect');
@@ -2707,6 +2767,45 @@
     });
   }
 
+  // Accent color picker
+  const accentColorInput = document.getElementById('accentColorInput');
+  const resetAccentColorBtn = document.getElementById('resetAccentColor');
+  if(accentColorInput){
+    accentColorInput.value = localStorage.getItem(LS_ACCENT) || DEFAULT_ACCENT;
+    accentColorInput.addEventListener('input', () => {
+      applyAccentColor(accentColorInput.value);
+      localStorage.setItem(LS_ACCENT, accentColorInput.value);
+    });
+  }
+  if(resetAccentColorBtn){
+    resetAccentColorBtn.addEventListener('click', () => {
+      localStorage.removeItem(LS_ACCENT);
+      applyAccentColor(DEFAULT_ACCENT);
+      if(accentColorInput) accentColorInput.value = DEFAULT_ACCENT;
+    });
+  }
+
+  // Custom background link
+  const customBgInput = document.getElementById('customBgInput');
+  const resetCustomBgBtn = document.getElementById('resetCustomBg');
+  if(customBgInput){
+    customBgInput.value = localStorage.getItem(LS_BG) || '';
+    const commitBg = () => {
+      const url = customBgInput.value.trim();
+      if(url) localStorage.setItem(LS_BG, url); else localStorage.removeItem(LS_BG);
+      applyCustomBg(url);
+    };
+    customBgInput.addEventListener('change', commitBg);
+    customBgInput.addEventListener('keydown', e => { if(e.key === 'Enter') customBgInput.blur(); });
+  }
+  if(resetCustomBgBtn){
+    resetCustomBgBtn.addEventListener('click', () => {
+      localStorage.removeItem(LS_BG);
+      if(customBgInput) customBgInput.value = '';
+      applyCustomBg('');
+    });
+  }
+
   // restore complex mode
   if(localStorage.getItem('dash_complex') === '1'){
     document.body.classList.add('complex-mode');
@@ -2725,6 +2824,10 @@
     if(!confirm('Clear all notes, todos, events, bookmarks, and city data?')) return;
     const keys = Object.keys(localStorage).filter(k => k.startsWith('dash_'));
     keys.forEach(k => localStorage.removeItem(k));
+    applyAccentColor(DEFAULT_ACCENT);
+    applyCustomBg('');
+    if(accentColorInput) accentColorInput.value = DEFAULT_ACCENT;
+    if(customBgInput) customBgInput.value = '';
     layout = loadLayout();
     renderGrid();
     closeModal(settingsBackdrop);

@@ -659,6 +659,38 @@
   .toggle.on{ background:var(--accent-dim); border-color:var(--accent); }
   .toggle.on::after{ left:22px; background:var(--accent); }
 
+  /* ---------- APPEARANCE (accent color + custom background) ---------- */
+  .settings-color-controls, .settings-bg-controls{
+    display:flex; align-items:center; gap:8px; flex-shrink:0;
+  }
+  .color-swatch{
+    -webkit-appearance:none; appearance:none;
+    width:32px; height:32px; padding:0; border:1px solid var(--border);
+    border-radius:50%; cursor:pointer; background:none; overflow:hidden; flex-shrink:0;
+  }
+  .color-swatch::-webkit-color-swatch-wrapper{ padding:0; border-radius:50%; }
+  .color-swatch::-webkit-color-swatch{ border:none; border-radius:50%; }
+  .color-swatch::-moz-color-swatch{ border:none; border-radius:50%; }
+  .icon-reset-btn{
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:30px; height:30px; border-radius:50%; cursor:pointer;
+    background:none; border:1px solid var(--border); color:var(--text-dim);
+    font-size:14px; line-height:1; transition:.15s;
+  }
+  .icon-reset-btn:hover{ color:var(--accent); border-color:var(--accent); }
+  .bg-url-input{
+    background:var(--bg); border:1px solid var(--border); color:var(--text);
+    padding:6px 12px; border-radius:999px; font-family:var(--mono);
+    font-size:11px; outline:none; width:180px; max-width:45vw;
+  }
+  .bg-url-input:focus{ border-color:var(--accent); }
+  .bg-url-input::placeholder{ color:var(--text-faint); }
+  @media (max-width:560px){
+    .settings-row-bg{ flex-wrap:wrap; row-gap:10px; }
+    .settings-bg-controls{ width:100%; }
+    .bg-url-input{ width:100%; max-width:none; flex:1; }
+  }
+
   /* ---------- iOS-LIKE CALENDAR ---------- */
   body.complex-mode .cal-grid{ gap:6px; }
   .cal-day{
