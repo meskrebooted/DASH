@@ -43,7 +43,9 @@
   const LS_GEO    = 'dash_geo_cache_v1';
   const LS_ACCENT = 'dash_accent_color_v1';
   const LS_BG     = 'dash_custom_bg_v1';
+  const LS_BG_OPACITY = 'dash_bg_opacity_v1';
   const DEFAULT_ACCENT = '#e5231b';
+  const DEFAULT_BG_OPACITY = 72;
   const GEO_MAX_AGE = 20 * 60 * 1000; // 20 min: reuse last fix instead of re-prompting/re-polling GPS
 
   /* ===================== APPEARANCE (accent color + custom background) ===================== */
@@ -61,10 +63,11 @@
     root.setProperty('--accent-glow', `rgba(${r},${g},${b},0.35)`);
     root.setProperty('--accent-dim', `rgb(${Math.round(r*0.3)},${Math.round(g*0.3)},${Math.round(b*0.3)})`);
   }
-  function applyCustomBg(url){
+  function applyCustomBg(url, opacityPct){
     const body = document.body.style;
     if(url){
-      body.backgroundImage = `linear-gradient(rgba(0,0,0,.72), rgba(0,0,0,.72)), url("${url.replace(/"/g, '%22')}")`;
+      const alpha = Math.max(0, Math.min(100, opacityPct ?? DEFAULT_BG_OPACITY)) / 100;
+      body.backgroundImage = `linear-gradient(rgba(0,0,0,${alpha}), rgba(0,0,0,${alpha})), url("${url.replace(/"/g, '%22')}")`;
       body.backgroundSize = 'cover';
       body.backgroundPosition = 'center';
       body.backgroundAttachment = 'fixed';
@@ -82,7 +85,10 @@
     const savedAccent = localStorage.getItem(LS_ACCENT);
     if(savedAccent) applyAccentColor(savedAccent);
     const savedBg = localStorage.getItem(LS_BG);
-    if(savedBg) applyCustomBg(savedBg);
+    if(savedBg){
+      const savedOpacity = parseInt(localStorage.getItem(LS_BG_OPACITY), 10);
+      applyCustomBg(savedBg, Number.isFinite(savedOpacity) ? savedOpacity : DEFAULT_BG_OPACITY);
+    }
   })();
 
   /* ===================== SHARED GEOLOCATION ===================== */
@@ -141,6 +147,8 @@
       'custom-bg-desc': 'Paste an image link to use as the dashboard background',
       'custom-bg-ph': 'https://example.com/image.jpg',
       'reset-bg-title': 'Remove custom background',
+      'bg-opacity': 'Background overlay opacity',
+      'bg-opacity-desc': 'Adjust how dark the overlay on the background image is',
       'byok': 'BYOK AI',
       'byok-desc': 'API key, provider and model for the Chat BYOK widget',
       'configure': 'Configure',
@@ -252,6 +260,8 @@
       'custom-bg-desc': 'Incolla il link di un\'immagine da usare come sfondo',
       'custom-bg-ph': 'https://esempio.com/immagine.jpg',
       'reset-bg-title': 'Rimuovi sfondo personalizzato',
+      'bg-opacity': 'Opacità overlay sfondo',
+      'bg-opacity-desc': 'Regola quanto scurire l\'immagine di sfondo',
       'byok': 'BYOK AI',
       'byok-desc': 'API key, provider e modello per Chat BYOK',
       'configure': 'Configura',
@@ -2785,15 +2795,31 @@
     });
   }
 
-  // Custom background link
+  // Custom background link + overlay opacity
+  const bgOpacityInput = document.getElementById('bgOpacityInput');
+  const bgOpacityValue = document.getElementById('bgOpacityValue');
+  function currentBgOpacity(){
+    const saved = parseInt(localStorage.getItem(LS_BG_OPACITY), 10);
+    return Number.isFinite(saved) ? saved : DEFAULT_BG_OPACITY;
+  }
   const customBgInput = document.getElementById('customBgInput');
   const resetCustomBgBtn = document.getElementById('resetCustomBg');
+  if(bgOpacityInput){
+    bgOpacityInput.value = currentBgOpacity();
+    if(bgOpacityValue) bgOpacityValue.textContent = bgOpacityInput.value + '%';
+    bgOpacityInput.addEventListener('input', () => {
+      const val = parseInt(bgOpacityInput.value, 10);
+      localStorage.setItem(LS_BG_OPACITY, String(val));
+      if(bgOpacityValue) bgOpacityValue.textContent = val + '%';
+      if(customBgInput && customBgInput.value.trim()) applyCustomBg(customBgInput.value.trim(), val);
+    });
+  }
   if(customBgInput){
     customBgInput.value = localStorage.getItem(LS_BG) || '';
     const commitBg = () => {
       const url = customBgInput.value.trim();
       if(url) localStorage.setItem(LS_BG, url); else localStorage.removeItem(LS_BG);
-      applyCustomBg(url);
+      applyCustomBg(url, currentBgOpacity());
     };
     customBgInput.addEventListener('change', commitBg);
     customBgInput.addEventListener('keydown', e => { if(e.key === 'Enter') customBgInput.blur(); });
@@ -2801,7 +2827,10 @@
   if(resetCustomBgBtn){
     resetCustomBgBtn.addEventListener('click', () => {
       localStorage.removeItem(LS_BG);
+      localStorage.removeItem(LS_BG_OPACITY);
       if(customBgInput) customBgInput.value = '';
+      if(bgOpacityInput) bgOpacityInput.value = DEFAULT_BG_OPACITY;
+      if(bgOpacityValue) bgOpacityValue.textContent = DEFAULT_BG_OPACITY + '%';
       applyCustomBg('');
     });
   }
@@ -2828,6 +2857,8 @@
     applyCustomBg('');
     if(accentColorInput) accentColorInput.value = DEFAULT_ACCENT;
     if(customBgInput) customBgInput.value = '';
+    if(bgOpacityInput) bgOpacityInput.value = DEFAULT_BG_OPACITY;
+    if(bgOpacityValue) bgOpacityValue.textContent = DEFAULT_BG_OPACITY + '%';
     layout = loadLayout();
     renderGrid();
     closeModal(settingsBackdrop);
