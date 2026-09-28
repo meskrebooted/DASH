@@ -98,6 +98,7 @@
   .add-btn:hover{ border-color:var(--accent); color:var(--accent); }
   #nomegit{
     text-decoration: none;
+    color:var(--text-faint);
   }
 
   /* ---------- GRID ---------- */
