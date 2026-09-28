@@ -29,7 +29,7 @@
   }
 
   /* ===================== CONFIG ===================== */
-  // No worker needed - using free public APIs or BYOK
+  // No worker needed - using free public APIs
 
   /* ===================== STORAGE ===================== */
   const LS_LAYOUT = 'dash_layout_v1';
@@ -149,9 +149,6 @@
       'reset-bg-title': 'Remove custom background',
       'bg-opacity': 'Background overlay opacity',
       'bg-opacity-desc': 'Adjust how dark the overlay on the background image is',
-      'byok': 'BYOK AI',
-      'byok-desc': 'API key, provider and model for the Chat BYOK widget',
-      'configure': 'Configure',
       'reset': 'Reset layout',
       'reset-desc': 'Restore the default widget layout',
       'clear': 'Clear data',
@@ -168,8 +165,7 @@
       'widget-title': {
         clock:'CLOCK', weather:'WEATHER', calendar:'CALENDAR', quote:'QUOTE',
         notes:'NOTES', crypto:'CRYPTO', map:'MAP', todo:'TODO', timer:'TIMER',
-        bookmarks:'BOOKMARKS', news:'NEWS', chatsimple:'CHAT', chatbyok:'CHAT BYOK',
-        github:'GITHUB', worldclock:'WORLD CLOCK',
+        bookmarks:'BOOKMARKS', news:'NEWS', github:'GITHUB', worldclock:'WORLD CLOCK',
         anilistrecent:'AL RECENT', anilistnotif:'AL NOTIFS', anilisttracker:'AL TRACKER',
         webpage:'WEB PAGE', habits:'HABITS'
       },
@@ -185,8 +181,6 @@
         timer:'Pomodoro 25/5 cycles',
         bookmarks:'Quick link grid, editable',
         news:'Top stories from Hacker News',
-        chatsimple:'Free AI chat (no key needed), supports images and files',
-        chatbyok:'Bring your own API key — OpenAI, Anthropic, Groq, and more',
         github:'GitHub user profile and stats',
         worldclock:'Multiple timezones at a glance',
         anilistrecent:'Anime aired in the last 7 days via AniList',
@@ -262,9 +256,6 @@
       'reset-bg-title': 'Rimuovi sfondo personalizzato',
       'bg-opacity': 'Opacità overlay sfondo',
       'bg-opacity-desc': 'Regola quanto scurire l\'immagine di sfondo',
-      'byok': 'BYOK AI',
-      'byok-desc': 'API key, provider e modello per Chat BYOK',
-      'configure': 'Configura',
       'reset': 'Reset',
       'reset-desc': 'Ripristina i widget predefiniti',
       'clear': 'Cancella dati',
@@ -281,8 +272,7 @@
       'widget-title': {
         clock:'OROLOGIO', weather:'METEO', calendar:'CALENDARIO', quote:'CITAZIONE',
         notes:'NOTE', crypto:'CRIPTO', map:'MAPPA', todo:'TODO', timer:'TIMER',
-        bookmarks:'SEGNALIBRI', news:'NOTIZIE', chatsimple:'CHAT', chatbyok:'CHAT BYOK',
-        github:'GITHUB', worldclock:'OROLOGIO MONDIALE',
+        bookmarks:'SEGNALIBRI', news:'NOTIZIE',        github:'GITHUB', worldclock:'OROLOGIO MONDIALE',
         anilistrecent:'AL RECENTI', anilistnotif:'AL NOTIFICHE', anilisttracker:'AL TRACKER',
         webpage:'PAGINA WEB', habits:'ABITUDINI'
       },
@@ -298,8 +288,6 @@
         timer:'Cicli Pomodoro 25/5',
         bookmarks:'Griglia link rapidi, modificabile',
         news:'Top stories da Hacker News',
-        chatsimple:'Chat AI gratuita (senza chiave), supporta immagini/file',
-        chatbyok:'Porta la tua chiave (OpenAI, Anthropic, NVIDIA NIM, Groq, ecc.)',
         github:'Statistiche profilo GitHub',
         worldclock:'Più fusi orari a colpo d\'occhio',
         anilistrecent:'Anime trasmessi negli ultimi 7 giorni via AniList',
@@ -387,7 +375,7 @@
   function loadLayout(){
     try{
       const raw = localStorage.getItem(LS_LAYOUT);
-      if(raw) return JSON.parse(raw);
+      if(raw) return JSON.parse(raw).filter(w => w.type !== 'chatsimple' && w.type !== 'chatbyok');
     }catch(e){}
     return [
       { id: uid(), type:'clock',   size:'1x1' },
@@ -401,6 +389,9 @@
   }
   function saveLayout(){ localStorage.setItem(LS_LAYOUT, JSON.stringify(layout)); }
   function uid(){ return 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  // Rimuove i dati residui delle vecchie chat (compresa l'API key salvata)
+  ['dash_chat_byok','dash_chat_byok_history'].forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
 
   /* ===================== WIDGET CONFIG STORAGE ===================== */
   function configKey(type, id){ return 'dash_cfg_' + type + '_' + id; }
@@ -965,8 +956,6 @@
     timer:      { icon:'◐', size:'1x1', build: buildTimer },
     bookmarks:  { icon:'☆', size:'1x2', build: buildBookmarks, customizable: true },
     news:       { icon:'◴', size:'2x1', build: buildNews, customizable: true },
-    chatsimple: { icon:'◌', size:'1x2', build: buildChatSimple },
-    chatbyok:   { icon:'🔑', size:'1x2', build: buildChatBYOK },
     github:     { icon:'◔', size:'1x2', build: buildGithub, customizable: true },
     worldclock: { icon:'◑', size:'2x1', build: buildWorldClock, customizable: true },
     anilistrecent:  { icon:'▶', size:'2x2', build: buildAniListRecent },
@@ -1654,353 +1643,6 @@
     function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":"'"}[c])); }
     fetchNews();
     setInterval(fetchNews, 5 * 60 * 1000);
-  }
-
-  /* ===================== CHAT SIMPLE (Free, no API key) ===================== */
-  function buildChatSimple(body, w){
-    const messages = document.createElement('div'); messages.className = 'chat-messages';
-    const attachRow = document.createElement('div'); attachRow.className = 'chat-attach-row';
-    attachRow.innerHTML = `
-      <label class="attach-btn" title="Attach image/file">
-        <input type="file" accept="image/*,.pdf,.txt,.md,.js,.ts,.json,.py,.html,.css" style="display:none;">
-        📎
-      </label>
-      <span class="attach-preview"></span>
-    `;
-    const inputRow = document.createElement('div'); inputRow.className = 'chat-input-row';
-    inputRow.innerHTML = `<input type="text" placeholder="Ask anything (free, no key needed)…"><button>Send</button>`;
-    body.appendChild(messages); body.appendChild(attachRow); body.appendChild(inputRow);
-
-    const history = [{ role:'system', content:'You are a helpful assistant in a personal dashboard. Be concise.' }];
-    let busy = false;
-    let attachedFile = null;
-
-    function add(role, content, isHtml=false){
-      const el = document.createElement('div');
-      el.className = 'chat-msg ' + role;
-      if(isHtml) el.innerHTML = content; else el.textContent = content;
-      messages.appendChild(el);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function renderImagePreview(file){
-      const preview = attachRow.querySelector('.attach-preview');
-      if(file.type.startsWith('image/')){
-        const url = URL.createObjectURL(file);
-        preview.innerHTML = `<img src="${url}" style="max-height:40px;border-radius:4px;margin-right:6px;"> ${file.name} <button class="attach-remove">✕</button>`;
-        preview.querySelector('.attach-remove').onclick = () => { attachedFile = null; preview.innerHTML = ''; };
-      } else {
-        preview.innerHTML = `📄 ${file.name} <button class="attach-remove">✕</button>`;
-        preview.querySelector('.attach-remove').onclick = () => { attachedFile = null; preview.innerHTML = ''; };
-      }
-    }
-
-    add('ai', 'Hi! I use a free public API (no key needed). Attach images or files with 📎.');
-
-    // File attach
-    const fileInput = attachRow.querySelector('input[type=file]');
-    attachRow.querySelector('.attach-btn').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', e => {
-      if(e.target.files[0]){
-        attachedFile = e.target.files[0];
-        renderImagePreview(attachedFile);
-      }
-    });
-
-    async function send(text){
-      if(busy && !text.trim() && !attachedFile) return;
-      busy = true;
-      const userText = text.trim();
-      if(userText) add('user', userText);
-      if(attachedFile){
-        if(attachedFile.type.startsWith('image/')){
-          add('user', `<img src="${URL.createObjectURL(attachedFile)}" style="max-width:100%;border-radius:8px;">`, true);
-        } else {
-          add('user', `📎 Attached: ${attachedFile.name} (${(attachedFile.size/1024).toFixed(1)} KB)`);
-        }
-      }
-      history.push({ role:'user', content: userText || '[attachment]' });
-
-      const typing = document.createElement('div');
-      typing.className = 'chat-typing';
-      typing.textContent = 'Thinking…';
-      messages.appendChild(typing);
-      messages.scrollTop = messages.scrollHeight;
-
-      const sendBtn = inputRow.querySelector('button');
-      sendBtn.disabled = true;
-
-      try {
-        // Use free public API - Hugging Face Inference API (no key for some models)
-        // Using a simple approach: we'll use a free tier or fallback
-        const payload = {
-          model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
-          messages: history,
-          temperature: 0.7,
-          max_tokens: 1024,
-          stream: false
-        };
-
-        // Try Hugging Face free inference (rate limited)
-        let reply = '';
-        try {
-          const r = await fetch('https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3.1-8B-Instruct', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if(r.ok){
-            const d = await r.json();
-            reply = d[0]?.generated_text || d.generated_text || '(no response)';
-          } else {
-            throw new Error('HF API error: ' + r.status);
-          }
-        } catch(e) {
-          // Fallback: simple echo or use another free endpoint
-          reply = 'Free API temporarily unavailable. Try Chat BYOK widget for reliable access with your own keys.';
-        }
-
-        typing.remove();
-        add('ai', reply);
-        history.push({ role:'assistant', content: reply });
-        attachedFile = null;
-        attachRow.querySelector('.attach-preview').innerHTML = '';
-      } catch(e){
-        typing.remove();
-        add('error', 'Error: ' + e.message);
-      }
-      busy = false;
-      sendBtn.disabled = false;
-    }
-
-    const input = inputRow.querySelector('input');
-    const sendBtn = inputRow.querySelector('button');
-    sendBtn.addEventListener('click', () => { send(input.value); input.value=''; });
-    input.addEventListener('keydown', e => { if(e.key==='Enter'){ send(input.value); input.value=''; } });
-  }
-
-  /* ===================== CHAT BYOK (Bring Your Own Key) ===================== */
-  function buildChatBYOK(body, w){
-    body.classList.add('chat-byok-body');
-
-    const messages = document.createElement('div'); messages.className='chat-messages';
-
-    const toolbar = document.createElement('div'); toolbar.className='chat-byok-toolbar';
-    toolbar.innerHTML = `
-      <label class="attach-btn" title="Attach image/file">
-        <input type="file" accept="image/*,.pdf,.txt,.md,.js,.ts,.json,.py,.html,.css" style="display:none;">
-        📎
-      </label>
-      <button class="chat-model-btn" type="button" title="Change model">
-        <span class="chev">▾</span><span class="model-name">Configure BYOK</span>
-      </button>
-      <span class="chat-byok-status"></span>
-    `;
-
-    const configPanel=document.createElement('div'); configPanel.className='chat-config-panel';
-    configPanel.innerHTML=`
-      <div class="chat-config-grid">
-        <select class="provider-select" aria-label="Provider">
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="google">Google</option>
-          <option value="nvidia">NVIDIA NIM</option>
-          <option value="openrouter">OpenRouter</option>
-          <option value="groq">Groq</option>
-          <option value="together">Together AI</option>
-          <option value="custom">Custom OpenAI-compatible</option>
-        </select>
-        <input type="password" class="api-key-input" placeholder="API key (saved locally)">
-        <input type="text" class="custom-url-input" placeholder="Custom base URL (optional)" style="display:none;">
-        <select class="model-select" aria-label="Model"></select>
-      </div>
-      <div class="chat-config-actions">
-        <button class="refresh-models" type="button">↻ Models</button>
-        <button class="save-config primary" type="button">Save</button>
-      </div>
-    `;
-
-    const attachPreview=document.createElement('span'); attachPreview.className='attach-preview';
-    const inputRow=document.createElement('div'); inputRow.className='chat-input-row';
-    inputRow.innerHTML=`<input type="text" placeholder="Message…"><button>Send</button>`;
-
-    const modelPopover=document.createElement('div'); modelPopover.className='chat-model-popover';
-
-    body.appendChild(messages);
-    body.appendChild(toolbar);
-    body.appendChild(configPanel);
-    toolbar.appendChild(attachPreview);
-    body.appendChild(modelPopover);
-    body.appendChild(inputRow);
-
-    const PROVIDERS={
-      openai:{name:'OpenAI',baseURL:'https://api.openai.com/v1',models:['gpt-4o','gpt-4o-mini','gpt-4-turbo','gpt-3.5-turbo'],defaultModel:'gpt-4o-mini',
-        headers:k=>({'Authorization':`Bearer ${k}`,'Content-Type':'application/json'}),formatMessages:m=>m,parseResponse:d=>d.choices?.[0]?.message?.content||''},
-      anthropic:{name:'Anthropic',baseURL:'https://api.anthropic.com/v1',models:['claude-3-5-sonnet-20241022','claude-3-5-haiku-20241022','claude-3-opus-20240229'],defaultModel:'claude-3-5-haiku-20241022',
-        headers:k=>({'x-api-key':k,'anthropic-version':'2023-06-01','Content-Type':'application/json'}),formatMessages:m=>{
-          const sys=m.find(x=>x.role==='system')?.content||''; return {system:sys,messages:m.filter(x=>x.role!=='system')};
-        },parseResponse:d=>d.content?.[0]?.text||''},
-      google:{name:'Google',baseURL:'https://generativelanguage.googleapis.com/v1beta',models:['gemini-2.5-flash','gemini-2.5-pro','gemini-2.0-flash'],defaultModel:'gemini-2.5-flash',
-        headers:k=>({'Content-Type':'application/json'}),formatMessages:m=>({contents:m.filter(x=>x.role!=='system').map(x=>({role:x.role==='assistant'?'model':'user',parts:[{text:x.content}]}))}),
-        parseResponse:d=>d.candidates?.[0]?.content?.parts?.[0]?.text||''},
-      nvidia:{name:'NVIDIA NIM',baseURL:'https://integrate.api.nvidia.com/v1',models:['meta/llama-3.1-405b-instruct','meta/llama-3.1-70b-instruct','meta/llama-3.1-8b-instruct'],defaultModel:'meta/llama-3.1-70b-instruct',
-        headers:k=>({'Authorization':`Bearer ${k}`,'Content-Type':'application/json'}),formatMessages:m=>m,parseResponse:d=>d.choices?.[0]?.message?.content||''},
-      openrouter:{name:'OpenRouter',baseURL:'https://openrouter.ai/api/v1',models:['openai/gpt-4o-mini','google/gemini-2.5-flash','anthropic/claude-3.5-sonnet','meta-llama/llama-3.3-70b-instruct'],defaultModel:'openai/gpt-4o-mini',
-        headers:k=>({'Authorization':`Bearer ${k}`,'Content-Type':'application/json','HTTP-Referer':location.origin,'X-Title':'DASH'}),formatMessages:m=>m,parseResponse:d=>d.choices?.[0]?.message?.content||''},
-      groq:{name:'Groq',baseURL:'https://api.groq.com/openai/v1',models:['llama-3.3-70b-versatile','llama-3.1-8b-instant','gemma2-9b-it'],defaultModel:'llama-3.3-70b-versatile',
-        headers:k=>({'Authorization':`Bearer ${k}`,'Content-Type':'application/json'}),formatMessages:m=>m,parseResponse:d=>d.choices?.[0]?.message?.content||''},
-      together:{name:'Together AI',baseURL:'https://api.together.xyz/v1',models:['meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo','meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo','Qwen/Qwen2.5-72B-Instruct-Turbo'],defaultModel:'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
-        headers:k=>({'Authorization':`Bearer ${k}`,'Content-Type':'application/json'}),formatMessages:m=>m,parseResponse:d=>d.choices?.[0]?.message?.content||''},
-      custom:{name:'Custom',baseURL:'',models:[],defaultModel:'',headers:k=>({'Authorization':`Bearer ${k}`,'Content-Type':'application/json'}),formatMessages:m=>m,parseResponse:d=>d.choices?.[0]?.message?.content||''}
-    };
-
-    const saved=JSON.parse(localStorage.getItem('dash_chat_byok')||'{}');
-    let currentProvider=saved.provider||'openai', currentKey=saved.key||'', currentModel=saved.model||'',
-        currentCustomURL=saved.customURL||'', attachedFile=null, busy=false;
-    let history=JSON.parse(localStorage.getItem('dash_chat_byok_history')||'[]');
-    if(!history.length) history=[{role:'system',content:'You are a helpful assistant in a personal dashboard. Be concise.'}];
-
-    const providerSel=configPanel.querySelector('.provider-select');
-    const keyInput=configPanel.querySelector('.api-key-input');
-    const customURLInput=configPanel.querySelector('.custom-url-input');
-    const modelSel=configPanel.querySelector('.model-select');
-    const modelBtn=toolbar.querySelector('.chat-model-btn');
-    const modelName=toolbar.querySelector('.model-name');
-    const status=toolbar.querySelector('.chat-byok-status');
-
-    function saveConfig(){
-      currentKey=keyInput.value.trim();
-      currentModel=modelSel.value||currentModel||PROVIDERS[currentProvider].defaultModel;
-      currentCustomURL=customURLInput.value.trim();
-      localStorage.setItem('dash_chat_byok',JSON.stringify({provider:currentProvider,key:currentKey,model:currentModel,customURL:currentCustomURL}));
-      updateModelUI();
-    }
-    function updateModelUI(){
-      const p=PROVIDERS[currentProvider];
-      modelName.textContent=currentModel||p.defaultModel||'Choose model';
-      modelName.title=`${p.name} · ${currentModel||p.defaultModel||'No model'}`;
-      status.textContent=currentKey?'● READY':'○ SETUP';
-    }
-    function populateModels(){
-      const p=PROVIDERS[currentProvider];
-      customURLInput.style.display=currentProvider==='custom'?'block':'none';
-      keyInput.placeholder=currentProvider==='custom'?'API key (optional)':'API key (saved locally)';
-      const models=p.models||[];
-      modelSel.innerHTML=models.length?models.map(m=>`<option value="${m}">${m}</option>`).join(''):'<option value="">No models loaded</option>';
-      if(currentModel && models.includes(currentModel)) modelSel.value=currentModel;
-      else { currentModel=models[0]||p.defaultModel||''; if(currentModel) modelSel.value=currentModel; }
-      updateModelUI();
-    }
-    async function refreshModels(){
-      const p=PROVIDERS[currentProvider];
-      if(!currentKey || currentProvider==='custom'){
-        populateModels(); return;
-      }
-      if(!p.baseURL){ populateModels(); return; }
-      try{
-        const r=await fetch(`${p.baseURL}/models`,{headers:p.headers(currentKey)});
-        if(!r.ok) throw new Error(`${r.status}`);
-        const d=await r.json();
-        const list=(d.data||d.models||[]).map(x=>x.id||x.name).filter(Boolean);
-        if(list.length) p.models=list.slice(0,300);
-        populateModels();
-        status.textContent=`● ${p.models.length} MODELS`;
-      }catch(e){
-        status.textContent='○ STATIC MODELS';
-        populateModels();
-      }
-    }
-
-    providerSel.value=currentProvider; keyInput.value=currentKey; customURLInput.value=currentCustomURL;
-    providerSel.addEventListener('change',()=>{currentProvider=providerSel.value;currentModel='';populateModels();});
-    modelSel.addEventListener('change',()=>{currentModel=modelSel.value;saveConfig();});
-    configPanel.querySelector('.save-config').addEventListener('click',()=>{saveConfig();configPanel.classList.remove('open');modelBtn.classList.remove('active');});
-    configPanel.querySelector('.refresh-models').addEventListener('click',refreshModels);
-    modelBtn.addEventListener('click',()=>{
-      renderModelPopover();
-      modelPopover.classList.toggle('open');
-      modelBtn.classList.toggle('active',modelPopover.classList.contains('open'));
-      if(modelPopover.classList.contains('open')) refreshModels();
-    });
-
-    function renderModelPopover(){
-      const models=PROVIDERS[currentProvider].models||[];
-      if(!models.length){modelPopover.innerHTML='<div class="chat-model-empty">Configure an API key to load models.</div>';return;}
-      modelPopover.innerHTML=models.map(m=>`<button class="chat-model-option ${m===currentModel?'selected':''}" data-model="${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('');
-      modelPopover.querySelectorAll('.chat-model-option').forEach(b=>b.addEventListener('click',()=>{
-        currentModel=b.dataset.model; saveConfig(); modelPopover.classList.remove('open'); renderModelPopover();
-      }));
-    }
-    // The compact model control is the normal selector; the panel is only for provider/key changes.
-    document.addEventListener('click',e=>{
-      if(!e.target.closest('.chat-byok-body')){modelPopover.classList.remove('open');modelBtn.classList.remove('active');}
-    });
-
-    function add(role,content,isHtml=false){
-      const el=document.createElement('div');el.className='chat-msg '+role;
-      if(isHtml) el.innerHTML=content; else el.textContent=content;
-      messages.appendChild(el);messages.scrollTop=messages.scrollHeight;
-    }
-    history.forEach(m=>{if(m.role!=='system')add(m.role,m.content);});
-
-    const fileInput=toolbar.querySelector('input[type=file]');
-    toolbar.querySelector('.attach-btn').addEventListener('click',()=>fileInput.click());
-    fileInput.addEventListener('change',e=>{
-      if(e.target.files[0]){
-        attachedFile=e.target.files[0];
-        attachPreview.innerHTML=`${attachedFile.type.startsWith('image/')?`<img src="${URL.createObjectURL(attachedFile)}">`:'📄'} ${escapeHtml(attachedFile.name)} <button class="attach-remove">✕</button>`;
-        attachPreview.querySelector('.attach-remove').onclick=()=>{attachedFile=null;attachPreview.innerHTML='';};
-      }
-    });
-
-    async function send(text){
-      if(busy) return;
-      const userText=text.trim();
-      if(!userText && !attachedFile)return;
-      if(!currentKey){add('error','⚠ Configure and save your API key first.');configPanel.classList.add('open');return;}
-      if(!currentModel){add('error','⚠ Choose a model first.');return;}
-      busy=true;
-      if(userText)add('user',userText);
-      if(attachedFile)add('user',attachedFile.type.startsWith('image/')?`<img src="${URL.createObjectURL(attachedFile)}" style="max-width:100%;border-radius:8px;">`:`📎 Attached: ${escapeHtml(attachedFile.name)}`,attachedFile.type.startsWith('image/'));
-      history.push({role:'user',content:userText||'[attachment]'});
-      localStorage.setItem('dash_chat_byok_history',JSON.stringify(history));
-      const typing=document.createElement('div');typing.className='chat-typing';typing.textContent='Thinking…';messages.appendChild(typing);
-      const sendBtn=inputRow.querySelector('button');sendBtn.disabled=true;
-      try{
-        const p=PROVIDERS[currentProvider];
-        const baseURL=currentProvider==='custom'?currentCustomURL:p.baseURL;
-        if(!baseURL)throw new Error('Custom provider needs Base URL');
-        let apiMessages=p.formatMessages(history), body={model:currentModel,messages:apiMessages,temperature:.7,max_tokens:2048};
-        let headers=p.headers(currentKey), url=`${baseURL}/chat/completions`;
-        if(currentProvider==='anthropic'){
-          body={model:currentModel,...apiMessages,max_tokens:2048,temperature:.7};url=`${baseURL}/messages`;
-        }else if(currentProvider==='google'){
-          body=p.formatMessages(history);body.generationConfig={temperature:.7,maxOutputTokens:2048};
-          url=`${baseURL}/models/${currentModel}:generateContent?key=${encodeURIComponent(currentKey)}`;
-        }
-        const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
-        typing.remove();
-        if(!r.ok){const er=await r.json().catch(()=>({}));throw new Error(`${r.status}: ${er.error?.message||er.message||'API error'}`);}
-        const d=await r.json(),reply=p.parseResponse(d);
-        if(!reply)throw new Error('Empty response');
-        add('ai',reply);history.push({role:'assistant',content:reply});
-        localStorage.setItem('dash_chat_byok_history',JSON.stringify(history));
-        attachedFile=null;attachPreview.innerHTML='';
-      }catch(e){typing.remove();add('error','❌ '+e.message);}
-      busy=false;sendBtn.disabled=false;
-    }
-
-    const input=inputRow.querySelector('input'),sendBtn=inputRow.querySelector('button');
-    sendBtn.addEventListener('click',()=>{send(input.value);input.value='';});
-    input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(input.value);input.value='';}});
-
-    const clearBtn=document.createElement('button');clearBtn.className='icon-btn';clearBtn.style.alignSelf='flex-start';clearBtn.style.marginTop='8px';
-    clearBtn.textContent='🗑 Clear';clearBtn.onclick=()=>{
-      if(confirm('Clear chat history?')){localStorage.removeItem('dash_chat_byok_history');history=[{role:'system',content:'You are a helpful assistant in a personal dashboard. Be concise.'}];messages.innerHTML='';}
-    };
-    body.appendChild(clearBtn);
-
-    populateModels(); updateModelUI();
   }
 
   /* ===================== GITHUB ===================== */
@@ -2736,25 +2378,6 @@
     openModal(settingsBackdrop);
   });
   document.getElementById('settingsClose').addEventListener('click', ()=> closeModal(settingsBackdrop));
-  document.getElementById('openByokSettings').addEventListener('click', ()=>{
-    closeModal(settingsBackdrop);
-    const byok=document.querySelector('.chat-byok-body');
-    if(byok){
-      byok.querySelector('.chat-config-panel')?.classList.add('open');
-      byok.querySelector('.chat-model-btn')?.classList.add('active');
-      byok.scrollIntoView({behavior:'smooth',block:'center'});
-    } else {
-      // Chat BYOK is not on the dashboard yet; add it once and open its configuration.
-      const w={id:uid(),type:'chatbyok',size:DEFS.chatbyok.size};
-      layout.push(w); saveLayout(); renderGrid();
-      setTimeout(()=>{
-        const el=document.querySelector(`[data-id="${w.id}"]`);
-        el?.querySelector('.chat-config-panel')?.classList.add('open');
-        el?.querySelector('.chat-model-btn')?.classList.add('active');
-        el?.scrollIntoView({behavior:'smooth',block:'center'});
-      },50);
-    }
-  });
   settingsBackdrop.addEventListener('click', e=>{ if(e.target===settingsBackdrop) closeModal(settingsBackdrop); });
 
   const complexToggle = document.getElementById('complexToggle');
