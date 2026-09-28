@@ -96,6 +96,9 @@
     transition:.15s;
   }
   .add-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  #nomegit{
+    text-decoration: none;
+  }
 
   /* ---------- GRID ---------- */
   main{
