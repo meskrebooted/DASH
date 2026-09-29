@@ -6,7 +6,7 @@ Dashboard personale
 ## API esterne usate
 
 | Widget | Servizio | Autenticazione |
-| --- | --- | --- | --- |
+| --- | --- | --- |
 | Meteo | **Open-Meteo** (+ geocoding) | Nessuna |
 | Mappa | **Leaflet** + tile **OpenStreetMap** |
 | Crypto | **CoinGecko** | Nessuna |
