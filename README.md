@@ -8,7 +8,7 @@ Dashboard personale
 | Widget | Servizio | Autenticazione |
 | --- | --- | --- |
 | Meteo | **Open-Meteo** (+ geocoding) | Nessuna |
-| Mappa | **Leaflet** + tile **OpenStreetMap** |
+| Mappa | **Leaflet** + tile **OpenStreetMap** | Nessuna |
 | Crypto | **CoinGecko** | Nessuna |
 | Citazioni | **kanye.rest** | Nessuna |
 | News | **Hacker News** (Firebase API), **Reddit** (`.json`), **Lobsters** | Nessuna |
